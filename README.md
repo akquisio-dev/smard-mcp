@@ -82,7 +82,9 @@ source.
 `get_generation_mix` and `compare_periods` use hourly values for periods up to 8 weeks and daily
 values above (daily values are published up to the previous day). Week, month and year values are
 never used for totals, because SMARD leaves the running period empty. All series of one result are
-cut at their newest common data point, so shares never mix different time horizons. Pumped storage
+cut at their newest common data point, so shares never mix different time horizons; a series
+that ended long before the others (nuclear, last value January 2024) is reported in the notes
+instead of holding the others back. Pumped storage
 does not count as renewable, as on SMARD.
 
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to

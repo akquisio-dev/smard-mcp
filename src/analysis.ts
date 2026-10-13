@@ -57,10 +57,17 @@ export interface AlignedData {
 }
 
 /**
+ * A series whose last value lies this far behind the newest series has
+ * ended (e.g. nuclear, whose last SMARD value is from January 2024) instead
+ * of merely being published later than the others.
+ */
+export const ENDED_SERIES_GAP_MS = 7 * DAY;
+
+/**
  * Fetches all `keys` for one range and cuts every series at the newest
- * timestamp that all non-empty series have reached. Series without any data
- * in the range (e.g. nuclear after April 2023) stay empty and do not hold the
- * others back.
+ * timestamp that all still-reporting series have reached, so that totals and
+ * shares cover the same interval. Series without data in the range, or that
+ * ended long before the others, do not hold the others back.
  */
 export async function fetchAligned(
   client: SmardClient,
@@ -92,13 +99,23 @@ export async function fetchAligned(
     }),
   );
 
-  const lasts = series.filter((s) => s.points.length > 0).map((s) => s.points[s.points.length - 1]!.timestamp);
-  const dataUntil = lasts.length > 0 ? Math.min(...lasts) : null;
-  if (dataUntil !== null) {
-    for (const s of series) s.points = s.points.filter((p) => p.timestamp <= dataUntil);
+  const notes: string[] = [];
+  const lastOf = (s: FetchedSeries) => s.points[s.points.length - 1]?.timestamp;
+  const lasts = series.map(lastOf).filter((t): t is number => t !== undefined);
+  const newest = lasts.length > 0 ? Math.max(...lasts) : null;
+  let dataUntil: number | null = null;
+  if (newest !== null) {
+    const reporting = lasts.filter((t) => t >= newest - ENDED_SERIES_GAP_MS);
+    dataUntil = Math.min(...reporting);
+    for (const s of series) {
+      const last = lastOf(s);
+      if (last !== undefined && last < newest - ENDED_SERIES_GAP_MS) {
+        notes.push(`${s.info.key} has no data after ${formatBerlin(last)}.`);
+      }
+      s.points = s.points.filter((p) => p.timestamp <= dataUntil!);
+    }
   }
 
-  const notes: string[] = [];
   const interval = INTERVAL_MS[resolution];
   const expectedEnd = Math.min(range.to, resolution === "day" ? berlinDayFloor(now) : now);
   const coveredEnd = dataUntil === null ? range.from : dataUntil + interval;

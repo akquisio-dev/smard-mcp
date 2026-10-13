@@ -156,3 +156,27 @@ describe("get_generation_mix", () => {
     expect(res.isError).toBe(true);
   });
 });
+
+describe("get_generation_mix with a series that ends inside the range", () => {
+  it("does not cut the other series at the end of the ended one", async () => {
+    // Nuclear reports until 2025-12-15 only, everything else until the data end.
+    const end = Date.parse("2025-12-14T23:00:00Z");
+    const smard = backend("2026-10-13T08:00:00Z", { 1224: { value: (t) => (t < end ? 3_000 : null) } });
+    const { data } = await mix(smard.fetch, { from: "2025-12-01", to: "2025-12-31" });
+    expect(data.resolution).toBe("hour");
+    expect(data.data_until).toBe("2025-12-31T23:00:00+01:00");
+    expect(data.sources.find((s) => s.key === "generation_nuclear")?.energy_gwh).toBe(14 * 24 * 3);
+    expect(data.total_generation_gwh).toBe((31 * 24 * TOTAL_PER_HOUR + 14 * 24 * 3_000) / 1000);
+    expect(data.notes.join(" ")).toMatch(/generation_nuclear has no data after 2025-12-14T23:00:00\+01:00/);
+    expect(data.notes.join(" ")).not.toMatch(/incomplete/);
+  });
+
+  it("does the same with daily values", async () => {
+    const end = Date.parse("2026-02-01T00:00:00Z");
+    const smard = backend("2026-10-13T08:00:00Z", { 1224: { value: (t) => (t < end ? 3_000 : null) } });
+    const { data } = await mix(smard.fetch, { from: "2026-01-01", to: "2026-06-30" });
+    expect(data.resolution).toBe("day");
+    expect(data.data_until).toBe("2026-06-30T00:00:00+02:00");
+    expect(data.notes.join(" ")).toMatch(/generation_nuclear has no data after/);
+  });
+});
