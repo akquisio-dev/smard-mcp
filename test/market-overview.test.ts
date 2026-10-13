@@ -53,6 +53,14 @@ afterEach(() => {
 });
 
 describe("get_market_overview", () => {
+  it("carries the report format in its description, where models always see it", async () => {
+    const client = await connect(backend().fetch);
+    const tool = (await client.listTools()).tools.find((t) => t.name === "get_market_overview")!;
+    expect(tool.description).toMatch(/## ⚡ Strommarkt <region> \| <weekday>, <DD\.MM\.YYYY>/);
+    expect(tool.description).toMatch(/### Auffälligkeiten/);
+    expect(tool.description).toMatch(/_Quelle: Bundesnetzagentur \| SMARD\.de \(CC BY 4\.0\)_/);
+  });
+
   it("combines mix, CO2, prices and the outlook for yesterday", async () => {
     const { res, data, text } = await overview({});
     expect(res.isError, text).toBeFalsy();

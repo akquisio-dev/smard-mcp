@@ -134,7 +134,7 @@ the plants (table 5).
 | Lignite             |       992 | 394.95 g/kWh primary energy / 39.8 %                                                                                 |
 | Hard coal           |       775 | 338.82 g/kWh / 43.7 %                                                                                                |
 | Natural gas         |       362 | 202.77 g/kWh / 56.0 %                                                                                                |
-| Other conventional  |       707 | **Uncertain.** Mix of oil, blast-furnace and mine gas, waste; oil value (266.47 g/kWh / 37.7 %) as a middle estimate |
+| Other conventional  |       707 | **Uncertain.** Mix of oil, blast-furnace and mine gas, waste; oil value (266.47 g/kWh / 37.7 %), likely conservative |
 | Renewables, biomass |         0 | No combustion, or biogenic CO2 (counted as climate-neutral)                                                          |
 | Nuclear             |         0 | No combustion                                                                                                        |
 | Pumped storage      |         0 | Stored electricity was generated and counted before (no double count)                                                |
@@ -152,12 +152,12 @@ methodological:
 - UBA divides the emissions of all German power generation by **consumption** (449 TWh in 2025),
   this server divides by SMARD's **net generation**.
 - UBA's emissions cover all power plants including industrial ones; SMARD's generation data
-  does not contain all of them, so this server's total emissions (about 120 Mt) are lower than
+  probably does not contain all of them, so this server's total emissions (about 120 Mt) are lower than
   UBA's (about 154 Mt implied by 344 g/kWh x 449 TWh).
 - The factors use gross efficiencies, but SMARD reports net generation; per net kWh, coal plants
   emit a few percent more.
 - "Other conventional" includes blast-furnace gas, which emits far more than the oil value used
-  here.
+  here, so that factor is likely conservative.
 
 Use the values for comparisons (hour to hour, day to day, region to region, year to year), not
 as official emission figures.

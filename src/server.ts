@@ -22,7 +22,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
       instructions: [
         "German electricity market data from SMARD (Bundesnetzagentur). All times are Europe/Berlin.",
         "Which tool to use:",
-        "- get_market_overview: one day at a glance (mix, renewable share, CO2, consumption, prices with 30-day context, outlook for the next day). Use it whenever someone asks for an overview or 'how was the electricity market yesterday/today', and present it in the format of the strom_uebersicht prompt (German unless the user writes English).",
+        "- get_market_overview: one day at a glance (mix, renewable share, CO2, consumption, prices with 30-day context, outlook for the next day). Use it whenever someone asks for an overview or 'how was the electricity market yesterday/today', and present it in the format given in its description (the same as the strom_uebersicht prompt; German unless the user writes English).",
         "- find_best_hours: cheapest and/or greenest time window of a day. Use it for questions about good times to use power, e.g. charging an electric car, running a heat pump, dishwasher or washing machine.",
         "- get_co2_intensity: estimated CO2 intensity per hour, cleanest/dirtiest hours and total emissions. Always say it is an estimate (generation-based, without imports/exports, direct emissions only).",
         "- get_generation_mix: how electricity was generated in a period (shares by source, renewable share, consumption). First choice for questions like 'how much solar/coal yesterday' or 'renewable share in March'.",

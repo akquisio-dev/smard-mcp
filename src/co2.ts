@@ -39,7 +39,7 @@ export const EMISSION_FACTORS: Readonly<Record<string, EmissionFactor>> = {
   generation_other_conventional: {
     gPerKwh: 707,
     basis:
-      "a mix of oil, blast-furnace and mine gas, non-biogenic waste and others; the UBA value for light heating oil (266.47 g/kWh / 37.7 %) serves as a middle estimate.",
+      "a mix of oil, blast-furnace and mine gas, non-biogenic waste and others; uses the UBA value for light heating oil (266.47 g/kWh / 37.7 %), which is likely conservative because blast-furnace gas emits far more.",
     uncertain: true,
   },
   generation_nuclear: { gPerKwh: 0, basis: "No combustion" },
