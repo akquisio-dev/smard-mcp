@@ -205,7 +205,9 @@ What happens when you use the hosted endpoint `https://energie.akquisio.eu/mcp`:
   duration. No user agent, no referrer, no request bodies. Deleted after 7 days.
 - **Web server error log:** only real server errors; nginx writes the full IP address into such
   entries. Requests rejected by the rate limit are not logged. Deleted after 7 days.
-- **Rate limit:** counts requests per IP address in memory only (no file, no database).
+- **Rate limit:** counts requests per IP address in memory only (no file, no database): 5 requests per
+  second (burst 20) per address, 30 per second (burst 100) for Anthropic's published outbound range,
+  which carries the requests of many claude.ai users.
 - **The MCP server itself** does not log requests, tool arguments or IP addresses (it does not even
   receive your IP address). Tool arguments are processed in memory for the duration of the
   request.
