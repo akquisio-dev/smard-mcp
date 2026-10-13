@@ -4,11 +4,84 @@
  * SMARD's chart_data API is unofficial and may change. This checks, for a
  * few core series, that index and newest block load through our client,
  * have the expected shape, contain plausible values and are recent.
+ * It also checks that every series id of our catalog still exists in
+ * SMARD's own module configuration, and, if SMOKE_ENDPOINT is set (e.g.
+ * https://energie.akquisio.eu), that our public server answers: deep
+ * health, MCP handshake, tool list and one tool call.
  * Exits with code 1 on any failure, so a scheduled CI run turns red.
  */
 
+const CONFIG_URL = "https://www.smard.de/app/chart_configuration/market_data_configuration.json";
+
+const EXPECTED_TOOLS = [
+  "analyze_prices",
+  "compare_periods",
+  "find_best_hours",
+  "get_co2_intensity",
+  "get_cross_border_flows",
+  "get_generation_mix",
+  "get_market_overview",
+  "get_series",
+  "list_series",
+];
+
+interface ModuleConfig {
+  main: { sub?: { module: Record<string, { data_id: number; region: string[] }[]> }[] }[];
+}
+
+/** Every catalog id must exist in SMARD's module configuration for the region we use it with. */
+async function checkCatalog(): Promise<string[]> {
+  const res = await fetch(CONFIG_URL, { signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) return [`module configuration: HTTP ${res.status}`];
+  const config = (await res.json()) as ModuleConfig;
+  const regions = new Map<number, Set<string>>();
+  for (const cat of config.main) {
+    for (const sub of cat.sub ?? []) {
+      for (const modules of Object.values(sub.module)) {
+        for (const m of modules) regions.set(m.data_id, new Set([...(regions.get(m.data_id) ?? []), ...m.region]));
+      }
+    }
+  }
+  if (regions.size < 100) return [`module configuration lists only ${regions.size} ids; format changed?`];
+  const problems: string[] = [];
+  for (const s of SERIES) {
+    if (!regions.get(s.filter)?.has("DE")) problems.push(`${s.key} (${s.filter}) not offered for DE`);
+  }
+  const borderRegion = new Map(BORDERS.flatMap((b) => [b.physical.export, b.physical.import, b.commercial.export, b.commercial.import].map((id) => [id, b.region])));
+  for (const s of BORDER_SERIES) {
+    const region = borderRegion.get(s.filter)!;
+    if (!regions.get(s.filter)?.has(region)) problems.push(`${s.key} (${s.filter}) not offered for ${region}`);
+  }
+  return problems;
+}
+
+/** Our own public endpoint: deep health, MCP handshake, tools, one call. */
+async function checkEndpoint(base: string): Promise<string[]> {
+  const problems: string[] = [];
+  const health = await fetch(`${base}/health?deep=1`, { signal: AbortSignal.timeout(15_000) });
+  const body = (await health.json().catch(() => ({}))) as { status?: string; version?: string };
+  if (health.status !== 200 || body.status !== "ok") problems.push(`/health?deep=1 answered ${health.status} ${JSON.stringify(body)}`);
+  const client = new Client({ name: "smard-mcp-smoke", version: "1" });
+  try {
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
+    const version = client.getServerVersion()?.version;
+    if (body.version && version !== body.version) problems.push(`MCP reports version ${version}, /health ${body.version}`);
+    const tools = (await client.listTools()).tools.map((t) => t.name).sort();
+    const missing = EXPECTED_TOOLS.filter((t) => !tools.includes(t));
+    if (missing.length > 0) problems.push(`tools missing: ${missing.join(", ")}`);
+    const res = await client.callTool({ name: "get_generation_mix", arguments: {} });
+    if (res.isError) problems.push(`get_generation_mix failed: ${JSON.stringify(res.content).slice(0, 200)}`);
+  } finally {
+    await client.close().catch(() => undefined);
+  }
+  return problems;
+}
+
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { BORDER_SERIES, SERIES, type Region, type Resolution } from "./catalog.js";
+import { BORDERS } from "./borders.js";
 import { SmardClient } from "./smard.js";
-import type { Region, Resolution } from "./catalog.js";
 
 const HOUR = 3_600_000;
 
@@ -86,7 +159,24 @@ async function main(): Promise<void> {
       console.log(`FAIL  ${check.name}: ${problems.join("; ")}`);
     }
   }
-  console.log(failed === 0 ? `All ${CHECKS.length} checks passed.` : `${failed} of ${CHECKS.length} checks failed.`);
+  const extra: [string, () => Promise<string[]>][] = [["catalog ids in SMARD's module configuration", checkCatalog]];
+  const endpoint = process.env.SMOKE_ENDPOINT?.replace(/\/+$/, "");
+  if (endpoint) extra.push([`endpoint ${endpoint}`, () => checkEndpoint(endpoint)]);
+  for (const [name, check] of extra) {
+    let problems: string[];
+    try {
+      problems = await check();
+    } catch (err) {
+      problems = [err instanceof Error ? err.message : String(err)];
+    }
+    if (problems.length === 0) console.log(`ok    ${name}`);
+    else {
+      failed++;
+      console.log(`FAIL  ${name}: ${problems.join("; ")}`);
+    }
+  }
+  const total = CHECKS.length + extra.length;
+  console.log(failed === 0 ? `All ${total} checks passed.` : `${failed} of ${total} checks failed.`);
   process.exitCode = failed === 0 ? 0 : 1;
 }
 

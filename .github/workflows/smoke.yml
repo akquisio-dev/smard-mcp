@@ -1,8 +1,9 @@
 name: SMARD smoke test
 
 # SMARD's chart_data API is unofficial and may change without notice.
-# This checks the live API every day; a failed run triggers GitHub's
-# notification e-mail.
+# This checks the live API and the catalog ids every day, and that the
+# public endpoint answers; a failed run triggers GitHub's notification
+# e-mail.
 
 on:
   schedule:
@@ -23,3 +24,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run smoke
+        env:
+          SMOKE_ENDPOINT: https://energie.akquisio.eu
