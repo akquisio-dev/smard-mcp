@@ -113,11 +113,7 @@ export function registerMarketOverview(server: McpServer, client: SmardClient): 
         "day-ahead price statistics with the comparison to the 30 days before (region DE only) and, if available, " +
         "an outlook on the next day (wind and solar forecast, consumption forecast, prices). " +
         "Use it for questions like 'How was the electricity market yesterday?' or 'Give me an overview of today'. Default: yesterday. " +
-        "Present the result in this format (German unless the user writes English): " +
-        "heading '## ⚡ Strommarkt <region> | <weekday>, <DD.MM.YYYY>'; '**Kurzfassung:**' with one sentence; " +
-        "a table '| Kennzahl | Wert |' with renewable share, CO2 intensity (estimate), consumption, mean price incl. comparison with the 30-day mean and negative-price hours (DE only); " +
-        "'### Strommix' as a table of sources, descending, GWh and %; '### Auffälligkeiten' with 2 to 3 bullet points backed by the data; " +
-        "'### Ausblick morgen' if forecasts or prices exist, else a note; and the line '_Quelle: Bundesnetzagentur | SMARD.de (CC BY 4.0)_'.",
+        "For a formatted report, the prompt strom_uebersicht provides a fixed template.",
       inputSchema: {
         date: z.string().optional().describe("Day as YYYY-MM-DD. Default: yesterday."),
         region: z.enum(MIX_REGIONS).default("DE").describe("Germany or one of the four transmission system operator zones."),
