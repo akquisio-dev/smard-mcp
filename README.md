@@ -228,6 +228,10 @@ your machine except the requests to smard.de. Questions: please open a
   most 48 hours old). A GitHub Action runs it daily, because SMARD's API is unofficial and may
   change.
 - Dependabot keeps npm packages and GitHub Actions up to date (weekly).
+- `npm run deploy` deploys the current, pushed commit to a server set up like `deploy/` describes
+  (settings in `deploy/deploy.env`, see `deploy/deploy.env.example`). It runs typecheck, tests and
+  build, keeps a copy of the running version, restarts the service and rolls back automatically if
+  `/health` does not report the new version afterwards.
 
 ## Data source and license
 
