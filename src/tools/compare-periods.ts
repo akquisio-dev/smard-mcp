@@ -124,7 +124,7 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
       title: "Compare two periods",
       description:
         "Compares two periods: generation per source, total generation, renewable share, consumption, average load, " +
-        "generation in % of / minus consumption, hours covered and, for region DE, the mean day-ahead price (DE-LU). " +
+        "generation in % of consumption, measured cross-border net export, CO2 intensity, hours covered and, for region DE, the mean day-ahead price (DE-LU). " +
         "Differences describe the change from period A to period B (B minus A) in GWh, percentage points (pp), GW and EUR/MWh; " +
         "use A for the baseline, usually the older period. " +
         "Each period uses hourly values up to 8 weeks and daily values above. " +

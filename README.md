@@ -3,8 +3,9 @@
 An [MCP](https://modelcontextprotocol.io) server for German electricity market data from
 [SMARD](https://www.smard.de), the market data platform of the Bundesnetzagentur.
 
-It lets AI assistants query electricity generation by source, consumption, day-ahead prices
-and forecasts directly, without having to know SMARD's internal ids or block layout.
+It lets AI assistants answer questions about electricity generation by source, consumption,
+day-ahead prices, cross-border flows, forecasts and estimated CO2 intensity, and find the cheapest
+or greenest hours of a day, without having to know SMARD's internal ids or block layout.
 
 ## Hosted endpoint
 
@@ -12,8 +13,8 @@ and forecasts directly, without having to know SMARD's internal ids or block lay
 https://energie.akquisio.eu/mcp
 ```
 
-Streamable HTTP, no authentication. Add it as a remote MCP server in your client, for example in
-Claude Code:
+Streamable HTTP, no authentication. In claude.ai add it under Settings → Connectors → Add custom
+connector; in Claude Code:
 
 ```sh
 claude mcp add --transport http smard https://energie.akquisio.eu/mcp
@@ -85,16 +86,21 @@ up to 7 days old; the result then carries `warnings`.
 | `find_best_hours`        | Best contiguous window of a day (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out. |
 | `get_co2_intensity`      | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                        |
 | `get_cross_border_flows` | Electricity exchanged with neighbouring countries: net export or import, total exports and imports, per country and the hours with the largest net import/export. Physical (measured) or commercial (scheduled trades).                                                |
-| `get_generation_mix`     | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption, CO2 intensity. Regions: DE and the four TSO zones.                                                          |
+| `get_generation_mix`     | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of consumption, measured cross-border net export, CO2 intensity. Regions: DE and the four TSO zones.                                  |
 | `compare_periods`        | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                      |
 | `analyze_prices`         | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                     |
 
-For periods without any data, for example in the future, the analysis tools return an error that
-names the newest available data; use `get_series` with a `forecast_*` series or `price_de_lu`
-instead.
+For periods without any data the analysis tools return an error: for the future it names the
+newest available data and points to `get_series` with a `forecast_*` series or `price_de_lu`; for
+the past it says when SMARD's data begins.
 
-`get_generation_mix` and `compare_periods` use hourly values for periods up to 8 weeks and daily
-values above (daily values are published up to the previous day). Week, month and year values are
+**Data coverage.** Generation, consumption and cross-border flows per country from January 2015,
+day-ahead prices of the DE-LU bidding zone from October 2018, SMARD's physical net export series
+from September 2020 (earlier, the net export is summed from the country series), 15-minute
+day-ahead prices from October 2025.
+
+`get_generation_mix`, `compare_periods`, `get_co2_intensity` and `get_cross_border_flows` use
+hourly values for periods up to 8 weeks and daily values above (daily values are published up to the previous day). Week, month and year values are
 never used for totals, because SMARD leaves the running period empty. All series of one result are
 cut at their newest common data point, so shares never mix different time horizons; a series
 that ended long before the others (nuclear, last value January 2024) is reported in the notes
@@ -177,8 +183,8 @@ as official emission figures.
 #### `list_series`
 
 Lists all available series with key, name, unit, category and (prices) bidding zone, plus regions,
-resolutions and the current server time. Optional `category` filter: `generation`, `consumption`,
-`price`, `forecast_generation`, `forecast_consumption`.
+resolutions, the server version and the current server time. Optional `category` filter:
+`generation`, `consumption`, `price`, `forecast_generation`, `forecast_consumption`, `cross_border`.
 
 #### `get_series`
 
@@ -219,7 +225,8 @@ What happens when you use the hosted endpoint `https://energie.akquisio.eu/mcp`:
   request.
 - **SMARD:** to answer a tool call the server fetches data files from smard.de. These requests
   contain only the series, region, resolution and time block, nothing about you. The fetched SMARD
-  data is cached in memory for up to 24 hours.
+  data is cached in memory (fresh for up to 24 hours, kept up to 7 days as a fallback when SMARD
+  does not answer).
 - No cookies, no accounts, no analytics, no data is passed on to anyone else.
 
 If you prefer, run the server yourself (see [Run locally](#run-locally)); with stdio nothing leaves
@@ -231,12 +238,14 @@ your machine except the requests to smard.de. Questions: please open a
 - `GET /health` reports name and version; `GET /health?deep=1` also checks that SMARD answers (at
   most every 5 minutes, otherwise the last result is returned; HTTP 503 if SMARD is unreachable).
 - `npm run smoke` checks the live SMARD API (core series: shape, plausible values, newest value at
-  most 48 hours old). A GitHub Action runs it daily, because SMARD's API is unofficial and may
-  change.
+  most 48 hours old) and that every series id of the catalog is still listed in SMARD's module
+  configuration; with `SMOKE_ENDPOINT` it also checks a running server (health, MCP handshake,
+  tools, one call). A GitHub Action runs it daily against `energie.akquisio.eu`, because SMARD's
+  API is unofficial and may change.
 - Dependabot keeps npm packages and GitHub Actions up to date (weekly).
 - `npm run deploy` deploys the current, pushed commit to a server set up like `deploy/` describes
-  (settings in `deploy/deploy.env`, see `deploy/deploy.env.example`). It runs typecheck, tests and
-  build, keeps a copy of the running version, restarts the service and rolls back automatically if
+  (settings in `deploy/deploy.env`, see `deploy/deploy.env.example`). It runs typecheck, lint,
+  tests and build, keeps a copy of the running version, restarts the service and rolls back automatically if
   `/health` does not report the new version afterwards.
 
 ## Data source and license
