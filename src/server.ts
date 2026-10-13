@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ATTRIBUTION } from "./catalog.js";
 import { SmardClient } from "./smard.js";
+import { registerMarketOverview } from "./tools/market-overview.js";
 import { registerBestHours } from "./tools/best-hours.js";
 import { registerCo2Intensity } from "./tools/co2.js";
 import { registerAnalyzePrices } from "./tools/prices.js";
@@ -38,6 +39,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
   registerAnalyzePrices(server, client);
   registerCo2Intensity(server, client);
   registerBestHours(server, client);
+  registerMarketOverview(server, client);
 
   return server;
 }

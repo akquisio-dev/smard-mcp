@@ -148,57 +148,74 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
     async ({ from, to, resolution, top_n, context }) =>
       guarded(async () => {
         const range = parseRange(from, to);
-        const limit = resolution === "hour" ? HOURLY_PRICE_MAX_RANGE_MS : HOURLY_MAX_RANGE_MS;
-        if (range.to - range.from > limit) {
-          throw new InputError(
-            resolution === "hour"
-              ? "analyze_prices covers at most 366 days with hourly prices. Split the range or use compare_periods for long-term averages."
-              : "Quarter-hour prices are limited to 8 weeks. Use resolution hour for longer ranges.",
-          );
-        }
-        const data = await fetchAligned(client, [PRICE_KEY], "DE", range.from, range.to, resolution, Date.now(), 56);
-        const points = data.series[0]?.points ?? [];
-        if (points.length === 0) {
-          throw new InputError(noDataMessage(await newestDataPoint(client, PRICE_KEY, "DE", resolution), resolution));
-        }
-        const notes = [...data.notes];
-        if (resolution === "quarterhour" && range.from < QUARTER_HOUR_AUCTION_START) {
-          notes.push("Before 1 Oct 2025 the day-ahead auction was hourly; quarter-hour values in that part repeat the hourly price.");
-        }
-
-        const stats = priceStats(points, top_n);
-        let contextResult: Result["context"];
-        if (context) {
-          const ref = await referenceMean(client, data.from);
-          if (ref === null) notes.push(`No prices for the ${CONTEXT_DAYS} days before the period, so there is no comparison.`);
-          contextResult =
-            ref === null
-              ? null
-              : {
-                  reference_from: formatBerlin(ref.from),
-                  reference_to: formatBerlin(ref.to),
-                  reference_mean_eur_mwh: price(ref.mean),
-                  deviation_pct: stats.mean_eur_mwh === null || ref.mean === 0 ? null : round1((100 * (mean(points.map((p) => p.value))! - ref.mean)) / Math.abs(ref.mean)) + 0,
-                };
-        }
-
-        const result: Result = {
-          bidding_zone: "DE-LU",
-          region: "DE-LU",
-          from: formatBerlin(data.from),
-          to: formatBerlin(data.to),
-          resolution,
-          covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
-          complete: data.complete,
-          data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
-          ...stats,
-          ...(context ? { context: contextResult } : {}),
-          notes,
-          source: ATTRIBUTION,
-        };
+        const result = await analyzePrices(client, range.from, range.to, resolution, top_n, context);
         return toolResult(pricesText(result, INTERVAL_MS[resolution] === 3_600_000 ? "hours" : "quarter-hours"), result);
       }),
   );
+}
+
+export type PriceAnalysis = Result;
+
+/**
+ * The whole analysis behind analyze_prices, reusable by other tools.
+ * Throws InputError for ranges that are too long or without data.
+ */
+export async function analyzePrices(
+  client: SmardClient,
+  from: number,
+  to: number,
+  resolution: "hour" | "quarterhour",
+  topN: number,
+  context: boolean,
+): Promise<PriceAnalysis> {
+  const limit = resolution === "hour" ? HOURLY_PRICE_MAX_RANGE_MS : HOURLY_MAX_RANGE_MS;
+  if (to - from > limit) {
+    throw new InputError(
+      resolution === "hour"
+        ? "analyze_prices covers at most 366 days with hourly prices. Split the range or use compare_periods for long-term averages."
+        : "Quarter-hour prices are limited to 8 weeks. Use resolution hour for longer ranges.",
+    );
+  }
+  const data = await fetchAligned(client, [PRICE_KEY], "DE", from, to, resolution, Date.now(), 56);
+  const points = data.series[0]?.points ?? [];
+  if (points.length === 0) {
+    throw new InputError(noDataMessage(await newestDataPoint(client, PRICE_KEY, "DE", resolution), resolution));
+  }
+  const notes = [...data.notes];
+  if (resolution === "quarterhour" && from < QUARTER_HOUR_AUCTION_START) {
+    notes.push("Before 1 Oct 2025 the day-ahead auction was hourly; quarter-hour values in that part repeat the hourly price.");
+  }
+
+  const stats = priceStats(points, topN);
+  let contextResult: Result["context"];
+  if (context) {
+    const ref = await referenceMean(client, data.from);
+    if (ref === null) notes.push(`No prices for the ${CONTEXT_DAYS} days before the period, so there is no comparison.`);
+    contextResult =
+      ref === null
+        ? null
+        : {
+            reference_from: formatBerlin(ref.from),
+            reference_to: formatBerlin(ref.to),
+            reference_mean_eur_mwh: price(ref.mean),
+            deviation_pct: ref.mean === 0 ? null : round1((100 * (mean(points.map((p) => p.value))! - ref.mean)) / Math.abs(ref.mean)) + 0,
+          };
+  }
+
+  return {
+    bidding_zone: "DE-LU",
+    region: "DE-LU",
+    from: formatBerlin(data.from),
+    to: formatBerlin(data.to),
+    resolution,
+    covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
+    complete: data.complete,
+    data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
+    ...stats,
+    ...(context ? { context: contextResult } : {}),
+    notes,
+    source: ATTRIBUTION,
+  };
 }
 
 function pricesText(r: Result, unit: string): string {
