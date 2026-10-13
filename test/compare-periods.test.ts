@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createFakeSmard, type FakeSeries } from "./fake-smard.js";
 import { connect, textOf } from "./helpers.js";
 
-const SWITCH = Date.parse("2026-01-01T00:00:00Z");
+const SWITCH = Date.parse("2025-12-31T23:00:00Z"); // 2026-01-01 00:00 Berlin
 /** Before 2026: 10 GWh/h lignite, 5 solar, price 100. From 2026: 8 lignite, 10 solar, price 150. */
 function backend() {
   const after = (t: number) => t >= SWITCH;
@@ -18,7 +18,12 @@ function backend() {
 }
 
 interface Period {
+  label: string;
   from: string;
+  hours: number;
+  average_load_gw: number;
+  balance_gwh: number;
+  complete: boolean;
   total_generation_gwh: number;
   renewable_share_pct: number;
   consumption_gwh: number;
@@ -33,6 +38,9 @@ interface Result {
     renewable_share_pp: number;
     consumption_gwh: number;
     consumption_pct: number;
+    average_load_gw: number;
+    balance_gwh: number;
+    hours: number;
     average_price_eur_mwh?: number | null;
     average_price_pct?: number | null;
     sources: { key: string; a_gwh: number; b_gwh: number; delta_gwh: number; delta_share_pp: number }[];
@@ -67,12 +75,25 @@ describe("compare_periods", () => {
     expect(data.differences.sources[0]).toMatchObject({ key: "generation_solar", a_gwh: 120, b_gwh: 240, delta_gwh: 120 });
     expect(data.differences.sources.some((s) => s.key === "generation_nuclear")).toBe(false);
     expect(data.notes).toEqual([]);
+    expect(data.period_a).toMatchObject({ label: "2025-10-12", hours: 24, average_load_gw: 18, balance_gwh: -48, complete: true });
+    expect(data.period_b).toMatchObject({ label: "2026-10-12", hours: 24, average_load_gw: 20, balance_gwh: -24 });
+    expect(data.differences).toMatchObject({ average_load_gw: 2, balance_gwh: 24, hours: 0 });
+    // Every source with generation in a period is listed, also in the text.
+    expect(data.differences.sources.map((s) => s.key).sort()).toEqual(["generation_lignite", "generation_pumped_storage", "generation_solar"]);
+    expect(text).toMatch(/A = 2025-10-12 \(24\.0 hours, complete\), B = 2026-10-12/);
+    expect(text).toMatch(/Changes are from A to B/);
     expect(text).toMatch(/Renewable share: A 31\.3 %, B 52\.6 % \(\+21\.4 pp\)/);
+    expect(text).toMatch(/Total generation: A 384\.0 GWh, B 456\.0 GWh \(\+72\.0 GWh\)/);
+    expect(text).toMatch(/Mean day-ahead price DE-LU: A 100\.00 EUR\/MWh, B 150\.00 EUR\/MWh \(\+50\.00 EUR\/MWh, \+50\.0 %\)/);
+    expect(text).toMatch(/pumped storage: 24\.0 GWh -> 24\.0 GWh/);
+    expect(text).toMatch(/No generation in either period: nuclear/);
   });
 
   it("handles the 25-hour day and warns about different lengths", async () => {
     const { data } = await compare({ period_a_from: "2025-10-26", period_b_from: "2026-10-12" });
     expect(data.period_a.total_generation_gwh).toBe(400); // 25 h * 16
+    expect(data.period_a.hours).toBe(25);
+    expect(data.differences.hours).toBe(-1);
     expect(data.period_a.consumption_gwh).toBe(450);
     expect(data.notes.join(" ")).toMatch(/differ in length/);
   });
@@ -87,6 +108,7 @@ describe("compare_periods", () => {
     expect(data.period_a.average_price_eur_mwh).toBe(100);
     expect(data.period_b.average_price_eur_mwh).toBe(150);
     expect(data.differences.renewable_share_pp).toBe(21.4);
+    expect(data.period_a.label).toBe("2025-01-01 to 2025-06-30");
   });
 
   it("leaves out the price for TSO zones", async () => {
@@ -95,6 +117,7 @@ describe("compare_periods", () => {
     expect(data.period_a.average_price_eur_mwh).toBeUndefined();
     expect(data.differences.average_price_eur_mwh).toBeUndefined();
     expect(data.differences.consumption_gwh).toBe(0);
+    expect(data.notes.join(" ")).toMatch(/no regional price/);
   });
 });
 
