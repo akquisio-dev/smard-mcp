@@ -74,7 +74,8 @@ date-time without offset is read as Berlin local time. Every result names the pe
 the resolution used, how far the data reaches (`covered_until`, the end of the last included
 interval), whether it covers the whole requested range (`complete`), notes, and the source.
 Energy is given in GWh (TWh added in texts from 10,000 GWh), load in GW, prices in EUR/MWh with
-two decimals, shares in %.
+two decimals, shares in %. If SMARD does not answer, the server retries and, if needed, serves cached data
+up to 7 days old; the result then carries `warnings`.
 
 ### Analysis
 
@@ -252,5 +253,9 @@ The code in this repository is licensed under the [MIT License](LICENSE).
 ```sh
 npm ci
 npm run typecheck
+npm run lint
 npm test
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and, for reporting vulnerabilities, [SECURITY.md](SECURITY.md).
+Changes are listed in [CHANGELOG.md](CHANGELOG.md).

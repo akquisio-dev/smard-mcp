@@ -35,6 +35,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
         "Answer short questions briefly with the few numbers asked for. Use a full report layout only when the user explicitly asks for an overview or a report; the prompts strom_uebersicht, wochen_bericht, monatsvergleich, region_vergleich and beste_stunden contain fixed German report templates for that.",
         "Energy is reported in GWh (get_series: MWh per interval), prices in EUR/MWh. Check complete, covered_until and notes: recent data may be incomplete.",
         "Analysis tools return an error for periods without any data (e.g. the future); use get_series with forecast_* series or price_de_lu for those.",
+        "If a result contains warnings (e.g. data served from the cache because SMARD did not answer), mention them.",
         `Cite the source as "${ATTRIBUTION}" when presenting the data.`,
       ].join("\n"),
     },

@@ -1,0 +1,33 @@
+name: Bug report
+description: Wrong numbers, errors or unexpected answers
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Tool name, arguments and the (relevant part of the) answer.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: If numbers look wrong, where do the correct ones come from (e.g. smard.de chart or CSV export)?
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where do you run the server?
+      options:
+        - Hosted endpoint (energie.akquisio.eu)
+        - Locally (stdio)
+        - Locally (HTTP)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: list_series reports it under "server", or see /health.

@@ -1,8 +1,13 @@
 {
   "name": "smard-mcp",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "MCP server for German electricity market data from SMARD (Bundesnetzagentur)",
   "license": "MIT",
+  "author": "akquisio-dev",
+  "homepage": "https://github.com/akquisio-dev/smard-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/akquisio-dev/smard-mcp/issues"
+  },
   "type": "module",
   "repository": {
     "type": "git",
@@ -23,7 +28,9 @@
     "smard-mcp": "dist/stdio.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/smoke.*",
+    "!dist/**/*.map"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

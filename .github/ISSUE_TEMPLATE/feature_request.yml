@@ -1,0 +1,16 @@
+name: Feature request
+description: A new tool, series or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Which question should the server be able to answer?
+      description: E.g. "How much wind power was curtailed last month?"
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data source
+      description: Is the data available on smard.de? Link to the chart if you know it.
