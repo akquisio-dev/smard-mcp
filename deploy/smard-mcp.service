@@ -1,0 +1,36 @@
+# Example systemd unit for the HTTP server.
+# Expects the built project in /opt/smard-mcp (npm ci --omit=dev && npm run build)
+# and a system user "smard-mcp". Adjust the node path to your installation.
+[Unit]
+Description=smard-mcp (MCP server for SMARD electricity market data)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=smard-mcp
+Group=smard-mcp
+WorkingDirectory=/opt/smard-mcp
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=8450
+ExecStart=/opt/node-22/bin/node dist/http.js
+Restart=on-failure
+RestartSec=5
+
+# Hardening: the server only needs outbound HTTPS to smard.de.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

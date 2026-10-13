@@ -1,0 +1,35 @@
+{
+  "name": "smard-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for German electricity market data from SMARD (Bundesnetzagentur)",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akquisio-dev/smard-mcp.git"
+  },
+  "keywords": ["mcp", "model-context-protocol", "smard", "electricity", "energy", "germany"],
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "smard-mcp": "dist/stdio.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "node dist/http.js",
+    "start:stdio": "node dist/stdio.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}
