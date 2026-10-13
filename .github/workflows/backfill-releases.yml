@@ -24,7 +24,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          failed=0
           notes() {
             awk -v v="$1" 'index($0, "## [" v "]") == 1 {f = 1; next} f && /^## \[/ {exit} f {print}' CHANGELOG.md
           }
@@ -34,11 +35,16 @@ jobs:
               body="$body"$'\n\n'"_Pre-1.0 version, deployed on energie.akquisio.eu; not published on npm._"
             fi
             if gh release view "v$version" >/dev/null 2>&1; then
-              gh release edit "v$version" --notes "$body"
-              echo "updated v$version"
+              cmd=(gh release edit "v$version" --notes "$body")
             else
-              gh release create "v$version" --target "$sha" --title "v$version" --notes "$body" --latest=false
-              echo "created v$version at $sha"
+              cmd=(gh release create "v$version" --target "$sha" --title "v$version" --notes "$body" --latest=false)
+            fi
+            # Report errors as annotations (readable without access to the logs) and go on.
+            if out="$("${cmd[@]}" 2>&1)"; then
+              echo "ok v$version"
+            else
+              echo "::error title=v$version::${out//$'\n'/ }"
+              failed=1
             fi
           done <<'LIST'
           0.1.0 01eaf87580ad2acf88ad321fcf3459e55e83019f
@@ -52,3 +58,4 @@ jobs:
           0.9.0 fe4f8dd16f21a9d36e548591527c26d5b2235f3b
           1.0.0 ed2a1a826d5fdbf0d2da42dc50a5d6683deeed20
           LIST
+          exit "$failed"
