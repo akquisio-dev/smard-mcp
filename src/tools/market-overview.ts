@@ -9,7 +9,7 @@ import type { SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
 import { co2Summary } from "./co2.js";
-import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText, signed } from "./generation-mix.js";
+import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText } from "./generation-mix.js";
 import { analyzePrices, priceContextSchema, type PriceAnalysis } from "./prices.js";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

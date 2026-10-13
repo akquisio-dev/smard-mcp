@@ -2,7 +2,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { INTERVAL_MS, PRICE_KEY, mean, type AlignedData } from "../analysis.js";
+import { PRICE_KEY, mean, type AlignedData } from "../analysis.js";
 import { ATTRIBUTION, findSeries } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin } from "../time.js";

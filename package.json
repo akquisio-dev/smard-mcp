@@ -8,17 +8,27 @@
     "type": "git",
     "url": "git+https://github.com/akquisio-dev/smard-mcp.git"
   },
-  "keywords": ["mcp", "model-context-protocol", "smard", "electricity", "energy", "germany"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "smard",
+    "electricity",
+    "energy",
+    "germany"
+  ],
   "engines": {
     "node": ">=22"
   },
   "bin": {
     "smard-mcp": "dist/stdio.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "vitest run",
     "start": "node dist/http.js",
     "start:stdio": "node dist/stdio.js",
@@ -30,8 +40,11 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "22.20.4",
+    "eslint": "10.11.0",
     "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
     "vitest": "4.1.11"
   }
 }

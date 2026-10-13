@@ -43,8 +43,9 @@ version="$(node -p 'require("./package.json").version')"
 commit="$(git rev-parse --short HEAD)"
 echo "Deploying smard-mcp $version ($commit) to $DEPLOY_HOST:$DEPLOY_DIR"
 
-step "Typecheck, tests, build"
+step "Typecheck, lint, tests, build"
 npm run typecheck
+npm run lint
 npm test --silent
 npm run build
 
