@@ -261,3 +261,22 @@ describe("message for periods before SMARD's data", () => {
     expect(textOf(res)).not.toMatch(/forecast/);
   });
 });
+
+describe("daily values ending on a DST switch day", () => {
+  it("counts the 25-hour last day fully", async () => {
+    const { data } = await mix(backend("2026-10-13T08:00:00Z").fetch, { from: "2025-08-01", to: "2025-10-26" });
+    expect(data.resolution).toBe("day");
+    expect(data.covered_until).toBe("2025-10-27T00:00:00+01:00");
+    expect(data.complete).toBe(true);
+    const hours = (Date.parse("2025-10-26T23:00:00Z") - Date.parse("2025-07-31T22:00:00Z")) / 3_600_000;
+    expect(data.hours).toBe(hours);
+    expect(data.notes.join(" ")).not.toMatch(/incomplete/);
+  });
+
+  it("counts the 23-hour last day exactly", async () => {
+    const { data } = await mix(backend("2026-10-13T08:00:00Z").fetch, { from: "2026-01-01", to: "2026-03-29" });
+    expect(data.covered_until).toBe("2026-03-30T00:00:00+02:00");
+    const hours = (Date.parse("2026-03-29T22:00:00Z") - Date.parse("2025-12-31T23:00:00Z")) / 3_600_000;
+    expect(data.hours).toBe(hours);
+  });
+});

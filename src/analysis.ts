@@ -7,7 +7,7 @@
 
 import { GENERATION_SERIES, findSeries, type Region, type SeriesInfo } from "./catalog.js";
 import { SmardError, type DataPoint, type SmardClient } from "./smard.js";
-import { berlinDayCeil, berlinDayFloor, formatBerlin } from "./time.js";
+import { berlinDayCeil, berlinDayFloor, formatBerlin, nextIntervalStart } from "./time.js";
 
 export const HOUR = 3_600_000;
 export const DAY = 24 * HOUR;
@@ -131,7 +131,8 @@ export async function fetchAligned(
 
   const interval = INTERVAL_MS[resolution];
   const expectedEnd = Math.min(range.to, resolution === "day" ? berlinDayFloor(now) : now);
-  const coveredEnd = dataUntil === null ? range.from : dataUntil + interval;
+  // Calendar-based: the last day may have 23 or 25 hours.
+  const coveredEnd = dataUntil === null ? range.from : nextIntervalStart(dataUntil, resolution);
   if (dataUntil === null) {
     notes.push("SMARD has no data for this range yet.");
   } else if (coveredEnd < range.to) {
@@ -226,7 +227,7 @@ export async function noDataText(
 
 /** Message for an analysis over a period without any data. */
 export function noDataMessage(newest: number | null, resolution: AnalysisResolution): string {
-  const until = newest === null ? "unknown" : formatBerlin(newest + INTERVAL_MS[resolution]);
+  const until = newest === null ? "unknown" : formatBerlin(nextIntervalStart(newest, resolution));
   return (
     `No data for this period; the newest data reaches until ${until}. ` +
     "For the future use get_series with forecast_generation_* / forecast_consumption_* series, " +
