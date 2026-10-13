@@ -5,7 +5,25 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
-## [0.8.0] - 2026-10-13
+## [0.9.0] - 2026-10-13
+
+Bug hunt before 1.0: cross-checked all tools against each other and against SMARD's CSV export,
+probed edge cases live (DST days, year boundary, leap day, range limits, data start, invalid
+input).
+
+### Fixed
+
+- Cross-border net export before September 2020: SMARD's physical net series only starts on
+  2020-09-24. `get_cross_border_flows` reported 0 for older periods; it now sums the country
+  series. Mix, comparison and overview fall back to the country series when the net series is
+  missing or starts inside the range.
+- Daily values ending on a DST switch day: `covered_until`, `complete` and `hours` were off by one
+  hour (the last day was assumed to have 24 hours).
+- Periods before SMARD's data start now say when the data begins instead of pointing to
+  forecasts.
+- `get_cross_border_flows` text no longer repeats the net figure.
+- README and the `compare_periods` description no longer mention the removed
+  generation-minus-consumption value; README documents data coverage per series.
 
 ### Changed (breaking)
 
@@ -99,7 +117,8 @@ changes; they are marked as such.
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
-[0.8.0]: https://github.com/akquisio-dev/smard-mcp/compare/443c24d...HEAD
+[0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/7ead2fe...HEAD
+[0.8.0]: https://github.com/akquisio-dev/smard-mcp/compare/443c24d...7ead2fe
 [0.7.0]: https://github.com/akquisio-dev/smard-mcp/compare/5b7f972...443c24d
 [0.6.0]: https://github.com/akquisio-dev/smard-mcp/compare/b28cd06...5b7f972
 [0.5.0]: https://github.com/akquisio-dev/smard-mcp/compare/1456b61...b28cd06
