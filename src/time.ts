@@ -91,3 +91,17 @@ export function formatBerlin(ms: number): string {
   const mm = String(abs % 60).padStart(2, "0");
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}${sign}${hh}:${mm}`;
 }
+
+/** Start of the Berlin calendar day containing `ms`. */
+export function berlinDayFloor(ms: number): number {
+  const p = berlinParts(ms);
+  return berlinMidnight(+p.year!, +p.month!, +p.day!);
+}
+
+/** `ms` if it is a Berlin midnight, else the start of the next Berlin day. */
+export function berlinDayCeil(ms: number): number {
+  const floor = berlinDayFloor(ms);
+  if (floor === ms) return ms;
+  const p = berlinParts(ms);
+  return berlinMidnight(+p.year!, +p.month!, +p.day! + 1);
+}
