@@ -189,6 +189,40 @@ accept `DE` or `DE-LU`. With `week`, `month` or `year` a value is only returned 
 starts inside the range, and the running period is missing. A single call returns at most 2000
 points.
 
+## Privacy
+
+What happens when you use the hosted endpoint `https://energie.akquisio.eu/mcp`:
+
+- **Cloudflare** sits in front of the server as a proxy (TLS, DDoS protection) and therefore
+  processes your IP address and the request, under
+  [Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/).
+- **Web server (nginx) access log:** shortened IP address (IPv4 without the last octet, IPv6 only
+  the first three blocks), time, method, path without query string, status, response size and
+  duration. No user agent, no referrer, no request bodies. Deleted after 7 days.
+- **Web server error log:** only real server errors; nginx writes the full IP address into such
+  entries. Requests rejected by the rate limit are not logged. Deleted after 7 days.
+- **Rate limit:** counts requests per IP address in memory only (no file, no database).
+- **The MCP server itself** does not log requests, tool arguments or IP addresses (it does not even
+  receive your IP address). Tool arguments are processed in memory for the duration of the
+  request.
+- **SMARD:** to answer a tool call the server fetches data files from smard.de. These requests
+  contain only the series, region, resolution and time block, nothing about you. The fetched SMARD
+  data is cached in memory for up to 24 hours.
+- No cookies, no accounts, no analytics, no data is passed on to anyone else.
+
+If you prefer, run the server yourself (see [Run locally](#run-locally)); with stdio nothing leaves
+your machine except the requests to smard.de. Questions: please open a
+[GitHub issue](https://github.com/akquisio-dev/smard-mcp/issues).
+
+## Operations
+
+- `GET /health` reports name and version; `GET /health?deep=1` also checks that SMARD answers (at
+  most every 5 minutes, otherwise the last result is returned; HTTP 503 if SMARD is unreachable).
+- `npm run smoke` checks the live SMARD API (core series: shape, plausible values, newest value at
+  most 48 hours old). A GitHub Action runs it daily, because SMARD's API is unofficial and may
+  change.
+- Dependabot keeps npm packages and GitHub Actions up to date (weekly).
+
 ## Data source and license
 
 Data: **Bundesnetzagentur | SMARD.de**, licensed under
