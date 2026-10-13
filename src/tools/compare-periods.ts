@@ -7,7 +7,7 @@ import { ATTRIBUTION, findSeries } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin } from "../time.js";
 import { READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult } from "./common.js";
-import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, signed, sourceName, type Mix } from "./generation-mix.js";
+import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText, signed, sourceName, type Mix } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
 const NO_REGIONAL_PRICE =
@@ -50,6 +50,7 @@ const outputShape = {
       average_load_gw: z.number().nullable(),
       generation_to_consumption_pp: z.number().nullable(),
       balance_gwh: z.number().nullable(),
+      net_export_gwh: z.number().nullable().describe("Change of the measured cross-border net export"),
       hours: z.number(),
       co2_intensity_g_per_kwh: z.number().nullable(),
       average_price_eur_mwh: z.number().nullable().optional(),
@@ -193,6 +194,8 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
               ma.raw.loadMWh === null || mb.raw.loadMWh === null
                 ? null
                 : diff((ma.raw.totalMWh - ma.raw.loadMWh) / 1000, (mb.raw.totalMWh - mb.raw.loadMWh) / 1000),
+            net_export_gwh:
+              ma.raw.netExportMWh === null || mb.raw.netExportMWh === null ? null : diff(ma.raw.netExportMWh / 1000, mb.raw.netExportMWh / 1000),
             hours: round1(mb.hours - ma.hours) + 0,
             co2_intensity_g_per_kwh: ma.raw.co2 === null || mb.raw.co2 === null ? null : Math.round(mb.raw.co2 - ma.raw.co2) + 0,
             ...(withPrice
@@ -228,7 +231,7 @@ function compareText(r: Result): string {
     `Average load: A ${gw(a.average_load_gw)}, B ${gw(b.average_load_gw)} (${opt(d.average_load_gw, " GW")}).`,
     `Generation in % of consumption: A ${pct(a.generation_to_consumption_pct)}, B ${pct(b.generation_to_consumption_pct)} (${opt(d.generation_to_consumption_pp, " pp")}).`,
     `Estimated CO2 intensity (generation-based, direct emissions): A ${a.co2_intensity_g_per_kwh ?? "n/a"} g/kWh, B ${b.co2_intensity_g_per_kwh ?? "n/a"} g/kWh (${d.co2_intensity_g_per_kwh === null ? "n/a" : `${d.co2_intensity_g_per_kwh > 0 ? "+" : ""}${d.co2_intensity_g_per_kwh} g/kWh`}).`,
-    `Generation minus consumption (indicator, not the physical export): A ${opt(a.balance_gwh, " GWh")}, B ${opt(b.balance_gwh, " GWh")}.`,
+    `Cross-border physical flows (measured): A ${a.net_export_gwh === null ? "n/a" : netFlowText(a.net_export_gwh)}, B ${b.net_export_gwh === null ? "n/a" : netFlowText(b.net_export_gwh)} (net export ${opt(d.net_export_gwh, " GWh")}).`,
   ];
   if (a.average_price_eur_mwh !== undefined) {
     const delta = d.average_price_eur_mwh;

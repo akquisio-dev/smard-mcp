@@ -13,6 +13,7 @@ function backend() {
     1224: { value: () => null },
     410: { value: (t, region) => (region === "DE" ? (after(t) ? 20_000 : 18_000) : 5_000) },
     4169: { value: (t) => (after(t) ? 150 : 100), aggregate: "mean" },
+    4963: { value: (t) => (after(t) ? -1_000 : 500) },
   };
   return createFakeSmard({ dataEnd: Date.parse("2026-10-13T08:00:00Z"), series });
 }
@@ -90,6 +91,8 @@ describe("compare_periods", () => {
     expect(text).toMatch(/Mean day-ahead price DE-LU: A 100\.00 EUR\/MWh, B 150\.00 EUR\/MWh \(\+50\.00 EUR\/MWh, \+50\.0 %\)/);
     expect(text).toMatch(/pumped storage: 24\.0 GWh -> 24\.0 GWh/);
     expect(text).toMatch(/No generation in either period: nuclear/);
+    expect((data.differences as unknown as { net_export_gwh: number }).net_export_gwh).toBe(-36);
+    expect(text).toMatch(/Cross-border physical flows \(measured\): A net export 12\.0 GWh, B net import 24\.0 GWh \(net export -36\.0 GWh\)/);
   });
 
   it("handles the 25-hour day and warns about different lengths", async () => {

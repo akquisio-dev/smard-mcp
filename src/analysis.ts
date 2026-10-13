@@ -221,3 +221,5 @@ export function median(values: readonly number[]): number | null {
 export const GENERATION_KEYS = GENERATION_SERIES.map((s) => s.key);
 export const LOAD_KEY = "consumption_total";
 export const PRICE_KEY = "price_de_lu";
+/** Measured physical cross-border net export (positive = export). */
+export const NET_EXPORT_KEY = "flow_physical_net_export";

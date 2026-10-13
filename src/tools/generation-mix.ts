@@ -2,7 +2,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { GENERATION_KEYS, LOAD_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
+import { GENERATION_KEYS, LOAD_KEY, NET_EXPORT_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
 import { ATTRIBUTION, GENERATION_SERIES, type Region } from "../catalog.js";
 import { co2Intensity } from "../co2.js";
 import type { SmardClient } from "../smard.js";
@@ -34,7 +34,11 @@ export const mixShape = {
   balance_gwh: z
     .number()
     .nullable()
-    .describe("Generation minus consumption; an indicator only, not the physical exchange (pumped storage, grid losses)"),
+    .describe("Generation minus consumption; an indicator only, not the physical exchange (pumped storage, grid losses). Prefer net_export_gwh"),
+  net_export_gwh: z
+    .number()
+    .nullable()
+    .describe("Measured physical cross-border net export (negative = net import); for TSO zones only borders to other countries"),
   hours: z.number().describe("Hours covered by the data (23 or 25 on DST switch days)"),
   co2_intensity_g_per_kwh: z
     .number()
@@ -64,12 +68,20 @@ export interface Mix {
   average_load_gw: number | null;
   generation_to_consumption_pct: number | null;
   balance_gwh: number | null;
+  net_export_gwh: number | null;
   hours: number;
   co2_intensity_g_per_kwh: number | null;
   sources: z.infer<typeof sourceSchema>[];
   sources_without_data: string[];
   /** Unrounded values for further calculations (not part of the output). */
-  raw: { totalMWh: number; renewableMWh: number; loadMWh: number | null; bySource: Map<string, number>; co2: number | null };
+  raw: {
+    totalMWh: number;
+    renewableMWh: number;
+    loadMWh: number | null;
+    netExportMWh: number | null;
+    bySource: Map<string, number>;
+    co2: number | null;
+  };
 }
 
 /** Computes the mix from aligned generation series plus the load series. */
@@ -91,6 +103,8 @@ export function computeMix(data: AlignedData): Mix {
   const loadMWh = load && load.points.length > 0 ? sum(load.points) : null;
   const hours = data.coveredUntil === null ? 0 : (data.coveredUntil - data.from) / 3_600_000;
   const co2 = co2Intensity(bySource);
+  const flows = data.series.find((s) => s.info.key === NET_EXPORT_KEY);
+  const netExportMWh = flows && flows.points.length > 0 ? sum(flows.points) : null;
 
   const sources = data.series
     .filter((s) => s.info.category === "generation" && !withoutData.includes(s.info.key))
@@ -114,11 +128,12 @@ export function computeMix(data: AlignedData): Mix {
     average_load_gw: loadMWh === null || hours === 0 ? null : round1(loadMWh / 1000 / hours),
     generation_to_consumption_pct: loadMWh ? round1((100 * totalMWh) / loadMWh) : null,
     balance_gwh: loadMWh === null ? null : round1((totalMWh - loadMWh) / 1000) + 0,
+    net_export_gwh: netExportMWh === null ? null : round1(netExportMWh / 1000) + 0,
     hours: round1(hours),
     co2_intensity_g_per_kwh: co2 === null ? null : Math.round(co2),
     sources,
     sources_without_data: withoutData,
-    raw: { totalMWh, renewableMWh, loadMWh, bySource, co2 },
+    raw: { totalMWh, renewableMWh, loadMWh, netExportMWh, bySource, co2 },
   };
 }
 
@@ -128,10 +143,13 @@ export function computeMix(data: AlignedData): Mix {
  */
 export async function loadMix(client: SmardClient, region: Region, from: number, to: number, now = Date.now(), label = "") {
   const resolution = chooseResolution(from, to);
-  const data = await fetchAligned(client, [...GENERATION_KEYS, LOAD_KEY], region, from, to, resolution, now);
+  const data = await fetchAligned(client, [...GENERATION_KEYS, LOAD_KEY, NET_EXPORT_KEY], region, from, to, resolution, now);
   if (data.dataUntil === null) {
     const newest = await newestDataPoint(client, LOAD_KEY, region, resolution);
     throw new InputError(label + noDataMessage(newest, resolution));
+  }
+  if (region !== "DE" && data.series.some((s) => s.info.key === NET_EXPORT_KEY && s.points.length > 0)) {
+    data.notes.push("The net export of a TSO zone counts only its borders to other countries, not exchanges with the other German zones.");
   }
   return { data, mix: computeMix(data) };
 }
@@ -163,8 +181,8 @@ export function registerGenerationMix(server: McpServer, client: SmardClient): v
       description:
         "Electricity generation by source for a period: energy per source in GWh and share in %, largest first, " +
         "the renewable share (wind, solar, biomass, hydro, other renewables; pumped storage is not renewable, as on SMARD), " +
-        "total consumption (grid load), average load in GW, the number of hours covered, and generation in % of / minus consumption " +
-        "as an import/export indicator (not the exact physical exchange). " +
+        "total consumption (grid load), average load in GW, the number of hours covered, the measured cross-border net export (negative = net import) " +
+        "and generation in % of consumption. " +
         "Uses hourly values up to 8 weeks and daily values above. Without from/to: yesterday.",
       inputSchema: {
         from: z.string().optional().describe("Start (inclusive), YYYY-MM-DD or ISO 8601 date-time (Berlin time if no offset). Default: yesterday."),
@@ -194,6 +212,11 @@ export function signed(n: number, unit: string): string {
   return `${n > 0 ? "+" : ""}${fmt1(n)}${unit}`;
 }
 
+/** "net import 37.6 GWh" or "net export 12.0 GWh". */
+export function netFlowText(netExportGwh: number): string {
+  return netExportGwh < 0 ? `net import ${energyText(-netExportGwh)}` : `net export ${energyText(netExportGwh)}`;
+}
+
 /** Display name of a generation series key, e.g. "nuclear". */
 export function sourceName(key: string): string {
   return GENERATION_SERIES.find((s) => s.key === key)?.name.replace(/^Generation: /, "") ?? key;
@@ -212,7 +235,9 @@ function mixText(r: ReturnType<typeof metaOf> & Omit<Mix, "raw">): string {
   if (r.co2_intensity_g_per_kwh !== null) {
     lines.push(`Estimated CO2 intensity: ${r.co2_intensity_g_per_kwh} g/kWh (generation-based, direct emissions only, without imports/exports).`);
   }
-  if (r.balance_gwh !== null) {
+  if (r.net_export_gwh !== null) {
+    lines.push(`Cross-border physical flows: ${netFlowText(r.net_export_gwh)} (measured; see get_cross_border_flows for countries).`);
+  } else if (r.balance_gwh !== null) {
     lines.push(
       `Generation minus consumption: ${signed(r.balance_gwh, " GWh")} (indicator only, not the exact physical export: pumped storage and grid losses are included).`,
     );

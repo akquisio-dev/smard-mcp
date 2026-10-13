@@ -217,3 +217,21 @@ describe("get_generation_mix without data", () => {
     expect(text).not.toMatch(/0\.0 GWh/);
   });
 });
+
+describe("get_generation_mix with measured cross-border flows", () => {
+  it("reports the physical net export and prefers it in the text", async () => {
+    const smard = backend("2026-10-13T08:00:00Z", { 4963: { value: () => -1_500 } });
+    const { data, text } = await mix(smard.fetch, { from: "2026-10-12" });
+    expect((data as unknown as { net_export_gwh: number }).net_export_gwh).toBe(-36);
+    expect(text).toMatch(/Cross-border physical flows: net import 36\.0 GWh \(measured/);
+    expect(text).not.toMatch(/Generation minus consumption/);
+  });
+
+  it("explains for TSO zones that only borders abroad count", async () => {
+    const smard = backend("2026-10-13T08:00:00Z", { 4963: { value: () => 800 } });
+    const { data, text } = await mix(smard.fetch, { from: "2026-10-12", region: "Amprion" });
+    expect((data as unknown as { net_export_gwh: number }).net_export_gwh).toBe(19.2);
+    expect(text).toMatch(/net export 19\.2 GWh/);
+    expect(data.notes.join(" ")).toMatch(/only its borders to other countries/);
+  });
+});

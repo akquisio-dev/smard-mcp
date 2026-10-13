@@ -9,7 +9,7 @@ import type { SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
 import { co2Summary } from "./co2.js";
-import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, signed } from "./generation-mix.js";
+import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText, signed } from "./generation-mix.js";
 import { analyzePrices, type PriceAnalysis } from "./prices.js";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -211,7 +211,7 @@ function overviewText(r: Result): string {
   const m = r.mix;
   const lines = [
     `Electricity market ${r.region}, ${r.weekday} ${r.date} (${coverageText(r)}):`,
-    `Renewable share ${m.renewable_share_pct === null ? "n/a" : fmt1(m.renewable_share_pct) + " %"}; generation ${energyText(m.total_generation_gwh)}; consumption ${m.consumption_gwh === null ? "n/a" : energyText(m.consumption_gwh)} (average load ${m.average_load_gw === null ? "n/a" : fmt1(m.average_load_gw) + " GW"}); generation minus consumption ${m.balance_gwh === null ? "n/a" : signed(m.balance_gwh, " GWh")}.`,
+    `Renewable share ${m.renewable_share_pct === null ? "n/a" : fmt1(m.renewable_share_pct) + " %"}; generation ${energyText(m.total_generation_gwh)}; consumption ${m.consumption_gwh === null ? "n/a" : energyText(m.consumption_gwh)} (average load ${m.average_load_gw === null ? "n/a" : fmt1(m.average_load_gw) + " GW"}); cross-border ${m.net_export_gwh === null ? (m.balance_gwh === null ? "n/a" : `generation minus consumption ${signed(m.balance_gwh, " GWh")}`) : netFlowText(m.net_export_gwh)}.`,
     `Estimated CO2 intensity ${r.co2.intensity_g_per_kwh ?? "n/a"} g/kWh (cleanest hour ${r.co2.cleanest_hour ? `${r.co2.cleanest_hour.time.slice(11, 16)} ${r.co2.cleanest_hour.g_per_kwh}` : "n/a"}, dirtiest ${r.co2.dirtiest_hour ? `${r.co2.dirtiest_hour.time.slice(11, 16)} ${r.co2.dirtiest_hour.g_per_kwh}` : "n/a"} g/kWh).`,
     `Mix: ${m.sources.map((s) => `${s.name} ${fmt1(s.energy_gwh)} GWh (${fmt1(s.share_pct)} %)`).join(", ")}.`,
   ];
