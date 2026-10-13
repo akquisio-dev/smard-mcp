@@ -70,6 +70,7 @@ export async function fetchAligned(
   to: number,
   resolution: AnalysisResolution,
   now = Date.now(),
+  maxBlocks: number = MAX_BLOCKS[resolution],
 ): Promise<AlignedData> {
   const range = effectiveRange(from, to, resolution);
   if (range.to <= range.from) {
@@ -81,9 +82,7 @@ export async function fetchAligned(
       const info = findSeries(key);
       if (!info) throw new Error(`Unknown series ${key}`);
       try {
-        const points = await client.getRange(info.filter, region, resolution, range.from, range.to, {
-          maxBlocks: MAX_BLOCKS[resolution],
-        });
+        const points = await client.getRange(info.filter, region, resolution, range.from, range.to, { maxBlocks });
         return { info, points };
       } catch (err) {
         // A series SMARD does not offer for this region counts as "no data".

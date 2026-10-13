@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ATTRIBUTION } from "./catalog.js";
 import { SmardClient } from "./smard.js";
+import { registerAnalyzePrices } from "./tools/prices.js";
 import { registerComparePeriods } from "./tools/compare-periods.js";
 import { registerGenerationMix } from "./tools/generation-mix.js";
 import { registerSeriesTools } from "./tools/series.js";
@@ -24,6 +25,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
   registerSeriesTools(server, client);
   registerGenerationMix(server, client);
   registerComparePeriods(server, client);
+  registerAnalyzePrices(server, client);
 
   return server;
 }
