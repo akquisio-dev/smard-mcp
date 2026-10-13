@@ -200,7 +200,7 @@ What happens when you use the hosted endpoint `https://energie.akquisio.eu/mcp`:
 - **Cloudflare** sits in front of the server as a proxy (TLS, DDoS protection) and therefore
   processes your IP address and the request, under
   [Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/).
-- **Web server (nginx) access log:** shortened IP address (IPv4 without the last octet, IPv6 only
+- **Web server (nginx) access log:** shortened IP address (IPv4 without the last octet, IPv6 at most
   the first three blocks), time, method, path without query string, status, response size and
   duration. No user agent, no referrer, no request bodies. Deleted after 7 days.
 - **Web server error log:** only real server errors; nginx writes the full IP address into such
