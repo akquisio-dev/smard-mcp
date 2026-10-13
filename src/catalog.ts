@@ -14,26 +14,43 @@ export interface SeriesInfo {
   category: Category;
   name: string;
   unit: "MWh" | "EUR/MWh";
-  note?: string;
+  /** Generation only: counts as renewable (SMARD's definition, pumped storage is not). */
+  renewable?: boolean;
+  /** Prices only: bidding zone. SMARD returns the same zone price for every region. */
+  zone?: string;
 }
 
-const g = (key: string, filter: number, name: string): SeriesInfo => ({ key, filter, category: "generation", name, unit: "MWh" });
-const p = (key: string, filter: number, name: string, note?: string): SeriesInfo => ({ key, filter, category: "price", name, unit: "EUR/MWh", ...(note ? { note } : {}) });
+const g = (key: string, filter: number, name: string, renewable: boolean): SeriesInfo => ({
+  key,
+  filter,
+  category: "generation",
+  name,
+  unit: "MWh",
+  renewable,
+});
+const p = (key: string, filter: number, name: string, zone: string): SeriesInfo => ({
+  key,
+  filter,
+  category: "price",
+  name,
+  unit: "EUR/MWh",
+  zone,
+});
 
 export const SERIES: readonly SeriesInfo[] = [
   // Actual generation
-  g("generation_lignite", 1223, "Generation: lignite"),
-  g("generation_nuclear", 1224, "Generation: nuclear"),
-  g("generation_wind_offshore", 1225, "Generation: wind offshore"),
-  g("generation_hydro", 1226, "Generation: hydropower"),
-  g("generation_other_conventional", 1227, "Generation: other conventional"),
-  g("generation_other_renewable", 1228, "Generation: other renewables"),
-  g("generation_biomass", 4066, "Generation: biomass"),
-  g("generation_wind_onshore", 4067, "Generation: wind onshore"),
-  g("generation_solar", 4068, "Generation: photovoltaics"),
-  g("generation_hard_coal", 4069, "Generation: hard coal"),
-  g("generation_pumped_storage", 4070, "Generation: pumped storage"),
-  g("generation_natural_gas", 4071, "Generation: natural gas"),
+  g("generation_lignite", 1223, "Generation: lignite", false),
+  g("generation_nuclear", 1224, "Generation: nuclear", false),
+  g("generation_wind_offshore", 1225, "Generation: wind offshore", true),
+  g("generation_hydro", 1226, "Generation: hydropower", true),
+  g("generation_other_conventional", 1227, "Generation: other conventional", false),
+  g("generation_other_renewable", 1228, "Generation: other renewables", true),
+  g("generation_biomass", 4066, "Generation: biomass", true),
+  g("generation_wind_onshore", 4067, "Generation: wind onshore", true),
+  g("generation_solar", 4068, "Generation: photovoltaics", true),
+  g("generation_hard_coal", 4069, "Generation: hard coal", false),
+  g("generation_pumped_storage", 4070, "Generation: pumped storage", false),
+  g("generation_natural_gas", 4071, "Generation: natural gas", false),
 
   // Actual consumption
   { key: "consumption_total", filter: 410, category: "consumption", name: "Consumption: total (grid load)", unit: "MWh" },
@@ -41,23 +58,23 @@ export const SERIES: readonly SeriesInfo[] = [
   { key: "consumption_pumped_storage", filter: 4387, category: "consumption", name: "Consumption: pumped storage", unit: "MWh" },
 
   // Day-ahead market prices
-  p("price_de_lu", 4169, "Day-ahead price: Germany/Luxembourg"),
-  p("price_de_lu_neighbours", 5078, "Day-ahead price: average of DE/LU neighbours"),
-  p("price_at", 4170, "Day-ahead price: Austria"),
-  p("price_be", 4996, "Day-ahead price: Belgium"),
-  p("price_ch", 259, "Day-ahead price: Switzerland"),
-  p("price_cz", 261, "Day-ahead price: Czech Republic"),
-  p("price_dk1", 252, "Day-ahead price: Denmark 1"),
-  p("price_dk2", 253, "Day-ahead price: Denmark 2"),
-  p("price_fr", 254, "Day-ahead price: France"),
-  p("price_hu", 262, "Day-ahead price: Hungary"),
-  p("price_it_north", 255, "Day-ahead price: Italy (North)"),
-  p("price_nl", 256, "Day-ahead price: Netherlands"),
-  p("price_no2", 4997, "Day-ahead price: Norway 2"),
-  p("price_pl", 257, "Day-ahead price: Poland"),
+  p("price_de_lu", 4169, "Day-ahead price: Germany/Luxembourg", "DE-LU"),
+  p("price_de_lu_neighbours", 5078, "Day-ahead price: average of DE/LU neighbours", "DE-LU neighbours"),
+  p("price_at", 4170, "Day-ahead price: Austria", "AT"),
+  p("price_be", 4996, "Day-ahead price: Belgium", "BE"),
+  p("price_ch", 259, "Day-ahead price: Switzerland", "CH"),
+  p("price_cz", 261, "Day-ahead price: Czech Republic", "CZ"),
+  p("price_dk1", 252, "Day-ahead price: Denmark 1", "DK1"),
+  p("price_dk2", 253, "Day-ahead price: Denmark 2", "DK2"),
+  p("price_fr", 254, "Day-ahead price: France", "FR"),
+  p("price_hu", 262, "Day-ahead price: Hungary", "HU"),
+  p("price_it_north", 255, "Day-ahead price: Italy (North)", "IT-North"),
+  p("price_nl", 256, "Day-ahead price: Netherlands", "NL"),
+  p("price_no2", 4997, "Day-ahead price: Norway 2", "NO2"),
+  p("price_pl", 257, "Day-ahead price: Poland", "PL"),
   // 258 is Sweden 4, not Poland as some third-party docs say (checked against SMARD's CSV export).
-  p("price_se4", 258, "Day-ahead price: Sweden 4"),
-  p("price_si", 260, "Day-ahead price: Slovenia"),
+  p("price_se4", 258, "Day-ahead price: Sweden 4", "SE4"),
+  p("price_si", 260, "Day-ahead price: Slovenia", "SI"),
 
   // Forecasts
   { key: "forecast_generation_total", filter: 122, category: "forecast_generation", name: "Forecast generation: total", unit: "MWh" },
@@ -75,6 +92,11 @@ export const SERIES_KEYS = SERIES.map((s) => s.key) as [string, ...string[]];
 export function findSeries(key: string): SeriesInfo | undefined {
   return SERIES.find((s) => s.key === key);
 }
+
+export const GENERATION_SERIES = SERIES.filter((s) => s.category === "generation");
+
+/** Regions accepted for price series; the zone itself is chosen by the series key. */
+export const PRICE_REGIONS: readonly Region[] = ["DE", "DE-LU"];
 
 export const REGIONS = ["DE", "DE-LU", "AT", "LU", "50Hertz", "Amprion", "TenneT", "TransnetBW"] as const;
 export type Region = (typeof REGIONS)[number];
