@@ -105,3 +105,29 @@ export function berlinDayCeil(ms: number): number {
   const p = berlinParts(ms);
   return berlinMidnight(+p.year!, +p.month!, +p.day! + 1);
 }
+
+/**
+ * Start of the interval following the one starting at `ms`, for SMARD
+ * resolutions. Calendar-based for day/week/month/year, so DST days and
+ * months of different length come out right.
+ */
+export function nextIntervalStart(ms: number, resolution: string): number {
+  const p = berlinParts(ms);
+  const [y, m, d] = [+p.year!, +p.month!, +p.day!];
+  switch (resolution) {
+    case "quarterhour":
+      return ms + 15 * 60_000;
+    case "hour":
+      return ms + 3_600_000;
+    case "day":
+      return berlinMidnight(y, m, d + 1);
+    case "week":
+      return berlinMidnight(y, m, d + 7);
+    case "month":
+      return berlinMidnight(y, m + 1, 1);
+    case "year":
+      return berlinMidnight(y + 1, 1, 1);
+    default:
+      throw new Error(`Unknown resolution ${resolution}`);
+  }
+}

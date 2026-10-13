@@ -2,11 +2,12 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { DAY, HOURLY_MAX_RANGE_MS, INTERVAL_MS, PRICE_KEY, fetchAligned, mean, median } from "../analysis.js";
+import { DAY, HOURLY_MAX_RANGE_MS, INTERVAL_MS, PRICE_KEY, fetchAligned, mean, median, newestDataPoint, noDataMessage } from "../analysis.js";
 import { ATTRIBUTION } from "../catalog.js";
 import type { DataPoint, SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
+import { coverageText } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
 /** Hourly analysis covers up to a year: one series only, at most 54 weekly blocks. */
@@ -24,7 +25,9 @@ const outputShape = {
   from: z.string(),
   to: z.string(),
   resolution: z.enum(["hour", "quarterhour"]),
-  data_until: z.string().nullable().describe("Start of the newest interval included"),
+  covered_until: z.string().nullable().describe("End of the last interval included"),
+  complete: z.boolean().describe("True if the data covers the whole requested range"),
+  data_until: z.string().nullable().describe("Start of the last interval included (kept for compatibility; prefer covered_until)"),
   count: z.number().describe("Number of intervals with a price"),
   mean_eur_mwh: z.number().nullable(),
   median_eur_mwh: z.number().nullable(),
@@ -109,6 +112,9 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
         }
         const data = await fetchAligned(client, [PRICE_KEY], "DE", range.from, range.to, resolution, Date.now(), 56);
         const points = data.series[0]?.points ?? [];
+        if (points.length === 0) {
+          throw new InputError(noDataMessage(await newestDataPoint(client, PRICE_KEY, "DE", resolution), resolution));
+        }
         const notes = [...data.notes];
         if (resolution === "quarterhour" && range.from < QUARTER_HOUR_AUCTION_START) {
           notes.push("Before 1 Oct 2025 the day-ahead auction was hourly; quarter-hour values in that part repeat the hourly price.");
@@ -120,6 +126,8 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
           from: formatBerlin(data.from),
           to: formatBerlin(data.to),
           resolution,
+          covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
+          complete: data.complete,
           data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
           ...priceStats(points, top_n),
           notes,
@@ -130,11 +138,14 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
   );
 }
 
-function pricesText(r: ReturnType<typeof priceStats> & { from: string; to: string; resolution: string; data_until: string | null; notes: string[]; source: string }, unit: string): string {
+function pricesText(
+  r: ReturnType<typeof priceStats> & { from: string; to: string; resolution: string; complete: boolean; covered_until: string | null; notes: string[]; source: string },
+  unit: string,
+): string {
   const eur = (n: number | null) => (n === null ? "n/a" : `${fmt1(n)} EUR/MWh`);
   const at = (p: { time: string; price_eur_mwh: number } | null) => (p ? `${fmt1(p.price_eur_mwh)} EUR/MWh at ${p.time}` : "n/a");
   const lines = [
-    `Day-ahead prices DE-LU, ${r.from} to ${r.to} (${r.resolution} values, data until ${r.data_until ?? "n/a"}):`,
+    `Day-ahead prices DE-LU, ${r.from} to ${r.to} (${r.resolution} values, ${coverageText(r)}):`,
     `Mean ${eur(r.mean_eur_mwh)}, median ${eur(r.median_eur_mwh)}, ${r.count} ${unit}.`,
     `Min ${at(r.min)}; max ${at(r.max)}.`,
     `Negative prices in ${r.negative_count} ${unit}.`,

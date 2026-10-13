@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBerlin, parseTime } from "../src/time.js";
+import { formatBerlin, nextIntervalStart, parseTime } from "../src/time.js";
 
 describe("parseTime", () => {
   it("reads a plain date as midnight in Berlin (summer time)", () => {
@@ -43,5 +43,16 @@ describe("formatBerlin", () => {
   it("formats with the Berlin offset", () => {
     expect(formatBerlin(Date.parse("2026-07-01T10:00:00Z"))).toBe("2026-07-01T12:00:00+02:00");
     expect(formatBerlin(Date.parse("2026-01-01T10:00:00Z"))).toBe("2026-01-01T11:00:00+01:00");
+  });
+});
+
+describe("nextIntervalStart", () => {
+  const at = (iso: string) => Date.parse(iso);
+  it("follows the Berlin calendar", () => {
+    expect(formatBerlin(nextIntervalStart(at("2025-10-25T22:00:00Z"), "day"))).toBe("2025-10-27T00:00:00+01:00");
+    expect(formatBerlin(nextIntervalStart(at("2026-09-30T22:00:00Z"), "month"))).toBe("2026-11-01T00:00:00+01:00");
+    expect(formatBerlin(nextIntervalStart(at("2025-12-31T23:00:00Z"), "year"))).toBe("2027-01-01T00:00:00+01:00");
+    expect(formatBerlin(nextIntervalStart(at("2026-03-22T23:00:00Z"), "week"))).toBe("2026-03-30T00:00:00+02:00");
+    expect(nextIntervalStart(0, "quarterhour")).toBe(15 * 60_000);
   });
 });

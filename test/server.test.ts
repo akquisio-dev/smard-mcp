@@ -41,6 +41,8 @@ describe("MCP server", () => {
       unit: string;
       bidding_zone: string;
       data_until: string;
+      covered_until: string;
+      complete: boolean;
       points: { time: string; value: number }[];
       summary: { mean: number; count: number; sum?: number };
     };
@@ -53,6 +55,8 @@ describe("MCP server", () => {
     expect(data.summary).toMatchObject({ count: 2, mean: 75.25 });
     expect(data.summary.sum).toBeUndefined();
     expect(data.data_until).toBe("2026-09-28T01:00:00+02:00");
+    expect(data.covered_until).toBe("2026-09-28T02:00:00+02:00");
+    expect(data.complete).toBe(false);
   });
 
   it("get_series reports bad input as a tool error", async () => {

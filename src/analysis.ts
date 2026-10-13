@@ -52,6 +52,10 @@ export interface AlignedData {
   to: number;
   /** Start of the last interval that every series with data covers, or null. */
   dataUntil: number | null;
+  /** End of that last interval, i.e. how far the result reaches, or null. */
+  coveredUntil: number | null;
+  /** True if the data covers the whole requested range. */
+  complete: boolean;
   /** Human-readable remarks, e.g. about incomplete data. */
   notes: string[];
 }
@@ -81,7 +85,16 @@ export async function fetchAligned(
 ): Promise<AlignedData> {
   const range = effectiveRange(from, to, resolution);
   if (range.to <= range.from) {
-    return { series: [], resolution, from: range.from, to: range.to, dataUntil: null, notes: ["The range contains no complete day."] };
+    return {
+      series: [],
+      resolution,
+      from: range.from,
+      to: range.to,
+      dataUntil: null,
+      coveredUntil: null,
+      complete: false,
+      notes: ["The range contains no complete day."],
+    };
   }
 
   const series = await Promise.all(
@@ -136,7 +149,56 @@ export async function fetchAligned(
     notes.push("Daily values were used, so the range was shrunk to whole days.");
   }
 
-  return { series, resolution, from: range.from, to: range.to, dataUntil, notes };
+  const complete = dataUntil !== null && coveredEnd >= range.to && range.from === from && range.to === to;
+  return {
+    series,
+    resolution,
+    from: range.from,
+    to: range.to,
+    dataUntil,
+    coveredUntil: dataUntil === null ? null : coveredEnd,
+    complete,
+    notes,
+  };
+}
+
+/**
+ * Newest timestamp with a value in a series (start of that interval),
+ * searching backwards from the block that contains `now`; null if the last
+ * few blocks hold nothing.
+ */
+export async function newestDataPoint(
+  client: SmardClient,
+  key: string,
+  region: Region,
+  resolution: AnalysisResolution,
+  now = Date.now(),
+): Promise<number | null> {
+  const info = findSeries(key);
+  if (!info) return null;
+  try {
+    const index = await client.getIndex(info.filter, region, resolution);
+    // Day-ahead prices reach into tomorrow, which may be the next block.
+    const candidates = index.filter((start) => start <= now + DAY).slice(-3).reverse();
+    for (const start of candidates) {
+      const points = await client.getBlock(info.filter, region, resolution, start, start === index[index.length - 1]);
+      const last = points[points.length - 1];
+      if (last) return last.timestamp;
+    }
+  } catch (err) {
+    if (!(err instanceof SmardError)) throw err;
+  }
+  return null;
+}
+
+/** Message for an analysis over a period without any data. */
+export function noDataMessage(newest: number | null, resolution: AnalysisResolution): string {
+  const until = newest === null ? "unknown" : formatBerlin(newest + INTERVAL_MS[resolution]);
+  return (
+    `No data for this period; the newest data reaches until ${until}. ` +
+    "For the future use get_series with forecast_generation_* / forecast_consumption_* series, " +
+    "or price_de_lu (day-ahead prices for tomorrow are published after the auction around noon)."
+  );
 }
 
 export function sum(points: readonly DataPoint[]): number {

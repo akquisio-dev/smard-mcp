@@ -22,6 +22,8 @@ interface P {
 }
 interface Result {
   bidding_zone: string;
+  covered_until: string;
+  complete: boolean;
   resolution: string;
   count: number;
   mean_eur_mwh: number;
@@ -88,6 +90,8 @@ describe("analyze_prices", () => {
     try {
       const { data } = await analyze({ from: "2026-10-13", to: "2026-10-14" }, backend("2026-10-13T22:00:00Z").fetch);
       expect(data.data_until).toBe("2026-10-13T23:00:00+02:00");
+      expect(data.covered_until).toBe("2026-10-14T00:00:00+02:00");
+      expect(data.complete).toBe(false);
       expect(data.notes.join(" ")).toMatch(/future/);
     } finally {
       vi.useRealTimers();
@@ -103,5 +107,16 @@ describe("analyze_prices", () => {
     const quarter = await analyze({ from: "2026-01-01", to: "2026-03-31", resolution: "quarterhour" });
     expect(quarter.res.isError).toBe(true);
     expect(quarter.text).toMatch(/8 weeks/);
+  });
+});
+
+describe("analyze_prices without data", () => {
+  it("returns an error pointing to day-ahead publication", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));
+    const { res, text } = await analyze({ from: "2026-10-20" }).finally(() => vi.useRealTimers());
+    expect(res.isError).toBe(true);
+    expect(text).toMatch(/newest data reaches until 2026-10-14T00:00:00\+02:00/);
+    expect(text).toMatch(/price_de_lu/);
   });
 });

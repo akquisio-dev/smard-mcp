@@ -33,6 +33,8 @@ function backend(dataEnd: string, overrides: Record<number, FakeSeries> = {}) {
 
 interface MixResult {
   region: string;
+  covered_until: string | null;
+  complete: boolean;
   resolution: string;
   from: string;
   to: string;
@@ -62,6 +64,8 @@ describe("get_generation_mix", () => {
     expect(data.from).toBe("2026-10-12T00:00:00+02:00");
     expect(data.to).toBe("2026-10-13T00:00:00+02:00");
     expect(data.data_until).toBe("2026-10-12T23:00:00+02:00");
+    expect(data.covered_until).toBe("2026-10-13T00:00:00+02:00");
+    expect(data.complete).toBe(true);
     expect(data.notes).toEqual([]);
     expect(data.total_generation_gwh).toBe((24 * TOTAL_PER_HOUR) / 1000);
     expect(data.renewable_share_pct).toBe(Math.round((1000 * RENEWABLE_PER_HOUR) / TOTAL_PER_HOUR) / 10);
@@ -104,6 +108,8 @@ describe("get_generation_mix", () => {
       });
       const { data } = await mix(smard.fetch, { from: "2026-10-13" });
       expect(data.data_until).toBe("2026-10-13T09:00:00+02:00");
+      expect(data.covered_until).toBe("2026-10-13T10:00:00+02:00");
+      expect(data.complete).toBe(false);
       expect(data.total_generation_gwh).toBe((10 * TOTAL_PER_HOUR) / 1000);
       expect(data.consumption_gwh).toBe((10 * LOAD_PER_HOUR) / 1000);
       expect(data.notes.join(" ")).toMatch(/incomplete/);
@@ -178,5 +184,19 @@ describe("get_generation_mix with a series that ends inside the range", () => {
     expect(data.resolution).toBe("day");
     expect(data.data_until).toBe("2026-06-30T00:00:00+02:00");
     expect(data.notes.join(" ")).toMatch(/generation_nuclear has no data after/);
+  });
+});
+
+describe("get_generation_mix without data", () => {
+  it("returns an error instead of zeros for a future period", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T09:00:00Z"));
+    const client = await connect(backend("2026-10-13T08:00:00Z").fetch);
+    const res = await client.callTool({ name: "get_generation_mix", arguments: { from: "2026-10-20" } }).finally(() => vi.useRealTimers());
+    expect(res.isError).toBe(true);
+    const text = textOf(res);
+    expect(text).toMatch(/No data for this period; the newest data reaches until 2026-10-13T10:00:00\+02:00/);
+    expect(text).toMatch(/forecast_generation_/);
+    expect(text).not.toMatch(/0\.0 GWh/);
   });
 });

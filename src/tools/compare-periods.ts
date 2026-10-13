@@ -13,6 +13,8 @@ const periodShape = {
   from: z.string(),
   to: z.string(),
   resolution: z.enum(["quarterhour", "hour", "day"]),
+  covered_until: z.string().nullable(),
+  complete: z.boolean(),
   data_until: z.string().nullable(),
   ...mixShape,
   average_price_eur_mwh: z.number().nullable().optional().describe("Mean day-ahead price DE-LU (region DE only)"),
@@ -122,8 +124,8 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
         const rangeA = parseRange(period_a_from, period_a_to);
         const rangeB = parseRange(period_b_from, period_b_to);
         const [a, b] = await Promise.all([
-          loadMix(client, region, rangeA.from, rangeA.to),
-          loadMix(client, region, rangeB.from, rangeB.to),
+          loadMix(client, region, rangeA.from, rangeA.to, Date.now(), "Period A: "),
+          loadMix(client, region, rangeB.from, rangeB.to, Date.now(), "Period B: "),
         ]);
         const withPrice = region === "DE";
         const [priceA, priceB] = withPrice ? await Promise.all([averagePrice(client, a.data), averagePrice(client, b.data)]) : [null, null];
@@ -135,6 +137,8 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
             from: meta.from,
             to: meta.to,
             resolution: meta.resolution,
+            covered_until: meta.covered_until,
+            complete: meta.complete,
             data_until: meta.data_until,
             ...mix,
             ...(withPrice ? { average_price_eur_mwh: price === null ? null : round1(price) } : {}),

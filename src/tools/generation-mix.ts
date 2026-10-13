@@ -2,11 +2,11 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { GENERATION_KEYS, INTERVAL_MS, LOAD_KEY, chooseResolution, fetchAligned, sum, type AlignedData } from "../analysis.js";
+import { GENERATION_KEYS, INTERVAL_MS, LOAD_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
 import { ATTRIBUTION, type Region } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
-import { READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
 import { parseRange } from "./range.js";
 
 export const MIX_REGIONS = ["DE", "50Hertz", "Amprion", "TenneT", "TransnetBW"] as const;
@@ -39,7 +39,9 @@ export const metaShape = {
   from: z.string(),
   to: z.string(),
   resolution: z.enum(["quarterhour", "hour", "day"]),
-  data_until: z.string().nullable().describe("Start of the newest interval included"),
+  covered_until: z.string().nullable().describe("End of the last interval included"),
+  complete: z.boolean().describe("True if the data covers the whole requested range"),
+  data_until: z.string().nullable().describe("Start of the last interval included (kept for compatibility; prefer covered_until)"),
   notes: z.array(z.string()),
   source: z.string(),
 };
@@ -103,11 +105,23 @@ export function computeMix(data: AlignedData): Mix {
   };
 }
 
-/** Fetches and computes the mix of one period. */
-export async function loadMix(client: SmardClient, region: Region, from: number, to: number, now = Date.now()) {
+/**
+ * Fetches and computes the mix of one period. A period without any data is
+ * an error instead of a mix full of zeros.
+ */
+export async function loadMix(client: SmardClient, region: Region, from: number, to: number, now = Date.now(), label = "") {
   const resolution = chooseResolution(from, to);
   const data = await fetchAligned(client, [...GENERATION_KEYS, LOAD_KEY], region, from, to, resolution, now);
+  if (data.dataUntil === null) {
+    const newest = await newestDataPoint(client, LOAD_KEY, region, resolution);
+    throw new InputError(label + noDataMessage(newest, resolution));
+  }
   return { data, mix: computeMix(data) };
+}
+
+/** "complete" or "incomplete, data until ..." for text summaries. */
+export function coverageText(meta: { complete: boolean; covered_until: string | null }): string {
+  return meta.complete ? "complete" : `incomplete, data until ${meta.covered_until ?? "n/a"}`;
 }
 
 export function metaOf(data: AlignedData, region: string) {
@@ -116,6 +130,8 @@ export function metaOf(data: AlignedData, region: string) {
     from: formatBerlin(data.from),
     to: formatBerlin(data.to),
     resolution: data.resolution,
+    covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
+    complete: data.complete,
     data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
     notes: data.notes,
     source: ATTRIBUTION,
@@ -153,7 +169,7 @@ export function registerGenerationMix(server: McpServer, client: SmardClient): v
 
 function mixText(r: ReturnType<typeof metaOf> & Omit<Mix, "raw">): string {
   const lines = [
-    `Generation mix ${r.region}, ${r.from} to ${r.to} (${r.resolution} values, data until ${r.data_until ?? "n/a"}):`,
+    `Generation mix ${r.region}, ${r.from} to ${r.to} (${r.resolution} values, ${coverageText(r)}):`,
     `Total generation ${fmt1(r.total_generation_gwh)} GWh, renewable ${r.renewable_share_pct === null ? "n/a" : fmt1(r.renewable_share_pct) + " %"} (${fmt1(r.renewable_gwh)} GWh).`,
   ];
   if (r.consumption_gwh !== null) {

@@ -97,3 +97,12 @@ describe("compare_periods", () => {
     expect(data.differences.consumption_gwh).toBe(0);
   });
 });
+
+describe("compare_periods without data", () => {
+  it("names the period that has no data", async () => {
+    const client = await connect(backend().fetch);
+    const res = await client.callTool({ name: "compare_periods", arguments: { period_a_from: "2026-10-12", period_b_from: "2026-11-01" } });
+    expect(res.isError).toBe(true);
+    expect(textOf(res)).toMatch(/^Period B: No data for this period/);
+  });
+});

@@ -4,7 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ATTRIBUTION, PRICE_REGIONS, REGIONS, RESOLUTIONS, SERIES, SERIES_KEYS, findSeries, type Region } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
-import { formatBerlin, parseTime } from "../time.js";
+import { formatBerlin, nextIntervalStart, parseTime } from "../time.js";
 import { InputError, errorResult, guarded, round2, toolResult } from "./common.js";
 
 /** Upper bound on points returned by one get_series call. */
@@ -53,6 +53,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
         "Fetches values of one SMARD time series for a time range. " +
         "Generation and consumption values are energy per interval in MWh (e.g. per hour at hourly resolution); prices are in EUR/MWh. " +
         "Price series belong to a bidding zone given by the series key, not to a region, so they only accept region DE or DE-LU. " +
+        "covered_until is the end of the last returned interval; complete tells whether the values reach the end of the range. " +
         "Times are Europe/Berlin. Without from/to, the last 24 hours plus the next 24 hours are returned (prices and forecasts reach into the future); with only from, 48 hours from that point. " +
         "With resolution week, month or year a value is only returned if the period starts inside the range, and the current, unfinished period is missing. " +
         `At most ${MAX_POINTS} points per call; use a coarser resolution for long ranges, or include_points=false for the summary only.`,
@@ -126,7 +127,8 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
 
         const notes: string[] = [];
         const interval = INTERVAL_MS[resolution];
-        const dataEnd = last ? last.timestamp + (interval ?? 0) : fromMs;
+        const coveredUntil = last ? nextIntervalStart(last.timestamp, resolution) : null;
+        const dataEnd = coveredUntil ?? fromMs;
         if (interval !== undefined && dataEnd < Math.min(toMs, now) - interval) {
           notes.push(`Data is incomplete: SMARD has values only up to ${last ? formatBerlin(last.timestamp) : "before the range"}.`);
         }
@@ -143,6 +145,8 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           resolution,
           from: formatBerlin(fromMs),
           to: formatBerlin(toMs),
+          covered_until: coveredUntil === null ? null : formatBerlin(coveredUntil),
+          complete: coveredUntil !== null && coveredUntil >= toMs,
           data_until: last ? formatBerlin(last.timestamp) : null,
           summary,
           ...(notes.length > 0 ? { notes } : {}),
