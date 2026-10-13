@@ -2,8 +2,8 @@
 # Deploys the current commit to a server running smard-mcp under systemd
 # (see deploy/smard-mcp.service). Usage: npm run deploy
 #
-# Settings come from deploy/deploy.env (not in git, see deploy.env.example)
-# or the environment:
+# Settings come from the environment or deploy/deploy.env (not in git, see
+# deploy.env.example); the environment wins:
 #   DEPLOY_HOST        ssh target, e.g. root@server.example.org (required)
 #   DEPLOY_DIR         install directory            (default /opt/smard-mcp)
 #   DEPLOY_NODE_BIN    directory of node and npm     (default /opt/node-22/bin)
@@ -19,9 +19,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# deploy/deploy.env is read, not executed: KEY=VALUE lines only, and
+# variables already set in the environment win (e.g. DEPLOY_PORT=... npm run deploy).
 if [[ -f deploy/deploy.env ]]; then
-  # shellcheck source=/dev/null
-  source deploy/deploy.env
+  while IFS='=' read -r key value; do
+    [[ -z "${!key:-}" ]] && export "$key=$value"
+  done < <(grep -E '^DEPLOY_[A-Z_]+=' deploy/deploy.env)
 fi
 : "${DEPLOY_HOST:?Set DEPLOY_HOST (ssh target) in deploy/deploy.env or the environment}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/smard-mcp}"
