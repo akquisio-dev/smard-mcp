@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ATTRIBUTION, PRICE_REGIONS, REGIONS, RESOLUTIONS, SERIES, SERIES_KEYS, findSeries, type Region } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { formatBerlin, nextIntervalStart, parseTime } from "../time.js";
+import { SERVER_NAME, SERVER_VERSION } from "../version.js";
 import { InputError, errorResult, guarded, round2, toolResult } from "./common.js";
 
 /** Upper bound on points returned by one get_series call. */
@@ -22,7 +23,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
     {
       title: "List SMARD series",
       description:
-        "Lists the SMARD time series this server can fetch, with their key, unit and category, plus the supported regions and resolutions and the current server time (Europe/Berlin).",
+        "Lists the SMARD time series this server can fetch, with their key, unit and category, plus the supported regions and resolutions, the server version and the current server time (Europe/Berlin).",
       inputSchema: {
         category: z
           .enum(["generation", "consumption", "price", "forecast_generation", "forecast_consumption", "cross_border"])
@@ -34,6 +35,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
     async ({ category }) => {
       const series = SERIES.filter((s) => !category || s.category === category).map(({ filter: _f, ...rest }) => rest);
       const result = {
+        server: { name: SERVER_NAME, version: SERVER_VERSION },
         server_time: formatBerlin(Date.now()),
         series,
         regions: [...REGIONS],

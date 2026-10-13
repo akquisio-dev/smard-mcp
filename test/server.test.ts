@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFakeSmard } from "./fake-smard.js";
 import { connect, textOf } from "./helpers.js";
+import { SERVER_VERSION } from "../src/version.js";
 
 const HOUR = 3_600_000;
 const B0 = Date.parse("2026-09-27T22:00:00Z");
@@ -27,6 +28,7 @@ describe("MCP server", () => {
     const data = res.structuredContent as { server_time: string; series: { key: string; unit: string; zone: string }[] };
     expect(data.series.length).toBeGreaterThan(5);
     expect(data.series.every((s) => s.unit === "EUR/MWh" && s.zone)).toBe(true);
+    expect((data as unknown as { server: { version: string } }).server.version).toBe(SERVER_VERSION);
     expect(data.server_time).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+0[12]:00$/);
   });
 
