@@ -1,0 +1,54 @@
+name: Backfill releases
+
+# One-off: creates tags and GitHub releases for the versions before 1.0.0
+# at the commits that were live, with their CHANGELOG section as notes,
+# and fills in the notes of v1.0.0. Tags created with the workflow's own
+# token do not trigger other workflows, so nothing is published to npm.
+# This file is removed again after it has run.
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/backfill-releases.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create or update releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          notes() {
+            awk -v v="$1" 'index($0, "## [" v "]") == 1 {f = 1; next} f && /^## \[/ {exit} f {print}' CHANGELOG.md
+          }
+          while read -r version sha; do
+            body="$(notes "$version")"
+            if [ "$version" != "1.0.0" ]; then
+              body="$body"$'\n\n'"_Pre-1.0 version, deployed on energie.akquisio.eu; not published on npm._"
+            fi
+            if gh release view "v$version" >/dev/null 2>&1; then
+              gh release edit "v$version" --notes "$body"
+              echo "updated v$version"
+            else
+              gh release create "v$version" --target "$sha" --title "v$version" --notes "$body" --latest=false
+              echo "created v$version at $sha"
+            fi
+          done <<'LIST'
+          0.1.0 01eaf87580ad2acf88ad321fcf3459e55e83019f
+          0.2.0 ad226390f0ff4131093ccb65e292ccfa04e2680b
+          0.3.0 1456b61d990083c548a16a9de1d4c398a114d559
+          0.4.0 601f7169e9b415313b872e7e293e909469e2b841
+          0.5.0 607075ba68590a1b6e0a2658097ce069e3e71e7a
+          0.6.0 61615fbff70c9d6449609deaedf5afcaf7d248d7
+          0.7.0 443c24d1af3fcdcbf048bbacd5a95586801ff74b
+          0.8.0 7ead2fefe4ffe23a99197e331de71427a3d75766
+          0.9.0 fe4f8dd16f21a9d36e548591527c26d5b2235f3b
+          1.0.0 ed2a1a826d5fdbf0d2da42dc50a5d6683deeed20
+          LIST

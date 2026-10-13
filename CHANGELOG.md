@@ -127,13 +127,13 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
-[1.0.0]: https://github.com/akquisio-dev/smard-mcp/compare/fe4f8dd...v1.0.0
-[0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/7ead2fe...fe4f8dd
-[0.8.0]: https://github.com/akquisio-dev/smard-mcp/compare/443c24d...7ead2fe
-[0.7.0]: https://github.com/akquisio-dev/smard-mcp/compare/5b7f972...443c24d
-[0.6.0]: https://github.com/akquisio-dev/smard-mcp/compare/b28cd06...5b7f972
-[0.5.0]: https://github.com/akquisio-dev/smard-mcp/compare/1456b61...b28cd06
-[0.4.0]: https://github.com/akquisio-dev/smard-mcp/compare/1456b61...9eb3f69
-[0.3.0]: https://github.com/akquisio-dev/smard-mcp/compare/0211d8a...1456b61
-[0.2.0]: https://github.com/akquisio-dev/smard-mcp/compare/01eaf87...0211d8a
-[0.1.0]: https://github.com/akquisio-dev/smard-mcp/commit/01eaf87
+[1.0.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.9.0...v1.0.0
+[0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/akquisio-dev/smard-mcp/releases/tag/v0.1.0
