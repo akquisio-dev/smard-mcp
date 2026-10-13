@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { GENERATION_KEYS, LOAD_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
 import { ATTRIBUTION, GENERATION_SERIES, type Region } from "../catalog.js";
+import { co2Intensity } from "../co2.js";
 import type { SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
@@ -35,6 +36,10 @@ export const mixShape = {
     .nullable()
     .describe("Generation minus consumption; an indicator only, not the physical exchange (pumped storage, grid losses)"),
   hours: z.number().describe("Hours covered by the data (23 or 25 on DST switch days)"),
+  co2_intensity_g_per_kwh: z
+    .number()
+    .nullable()
+    .describe("Estimated direct CO2 per kWh generated (generation-based, without imports/exports and upstream emissions)"),
   sources: z.array(sourceSchema).describe("Sources with generation, largest first"),
   sources_without_data: z.array(z.string()).describe("Series with no data or less than 0.05 GWh in the period; left out of sources"),
 };
@@ -60,10 +65,11 @@ export interface Mix {
   generation_to_consumption_pct: number | null;
   balance_gwh: number | null;
   hours: number;
+  co2_intensity_g_per_kwh: number | null;
   sources: z.infer<typeof sourceSchema>[];
   sources_without_data: string[];
   /** Unrounded values for further calculations (not part of the output). */
-  raw: { totalMWh: number; renewableMWh: number; loadMWh: number | null; bySource: Map<string, number> };
+  raw: { totalMWh: number; renewableMWh: number; loadMWh: number | null; bySource: Map<string, number>; co2: number | null };
 }
 
 /** Computes the mix from aligned generation series plus the load series. */
@@ -84,6 +90,7 @@ export function computeMix(data: AlignedData): Mix {
   const load = data.series.find((s) => s.info.key === LOAD_KEY);
   const loadMWh = load && load.points.length > 0 ? sum(load.points) : null;
   const hours = data.coveredUntil === null ? 0 : (data.coveredUntil - data.from) / 3_600_000;
+  const co2 = co2Intensity(bySource);
 
   const sources = data.series
     .filter((s) => s.info.category === "generation" && !withoutData.includes(s.info.key))
@@ -108,9 +115,10 @@ export function computeMix(data: AlignedData): Mix {
     generation_to_consumption_pct: loadMWh ? round1((100 * totalMWh) / loadMWh) : null,
     balance_gwh: loadMWh === null ? null : round1((totalMWh - loadMWh) / 1000) + 0,
     hours: round1(hours),
+    co2_intensity_g_per_kwh: co2 === null ? null : Math.round(co2),
     sources,
     sources_without_data: withoutData,
-    raw: { totalMWh, renewableMWh, loadMWh, bySource },
+    raw: { totalMWh, renewableMWh, loadMWh, bySource, co2 },
   };
 }
 
@@ -200,6 +208,9 @@ function mixText(r: ReturnType<typeof metaOf> & Omit<Mix, "raw">): string {
     lines.push(
       `Consumption ${energyText(r.consumption_gwh)} (average load ${r.average_load_gw === null ? "n/a" : fmt1(r.average_load_gw) + " GW"}), generation = ${r.generation_to_consumption_pct === null ? "n/a" : fmt1(r.generation_to_consumption_pct) + " %"} of consumption.`,
     );
+  }
+  if (r.co2_intensity_g_per_kwh !== null) {
+    lines.push(`Estimated CO2 intensity: ${r.co2_intensity_g_per_kwh} g/kWh (generation-based, direct emissions only, without imports/exports).`);
   }
   if (r.balance_gwh !== null) {
     lines.push(

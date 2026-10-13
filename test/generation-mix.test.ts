@@ -81,6 +81,11 @@ describe("get_generation_mix", () => {
     expect(data.sources.some((s) => s.key === "generation_nuclear")).toBe(false);
     expect(data.sources_without_data).toEqual(["generation_nuclear"]);
     expect(data.hours).toBe(24);
+    // lignite 12 000 x 992 + hard coal 4 000 x 775 + gas 8 000 x 362 + other conv. 1 500 x 707, per 50 100 MWh
+    expect((data as unknown as { co2_intensity_g_per_kwh: number }).co2_intensity_g_per_kwh).toBe(
+      Math.round((12_000 * 992 + 4_000 * 775 + 8_000 * 362 + 1_500 * 707) / TOTAL_PER_HOUR),
+    );
+    expect(text).toMatch(/Estimated CO2 intensity: \d+ g\/kWh \(generation-based/);
     expect(data.balance_gwh).toBe((24 * (TOTAL_PER_HOUR - LOAD_PER_HOUR)) / 1000);
     expect(text).toMatch(/Total generation 1202\.4 GWh,/);
     expect(text).toMatch(/24\.0 hours, complete/);

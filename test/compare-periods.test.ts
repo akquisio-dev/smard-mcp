@@ -78,6 +78,9 @@ describe("compare_periods", () => {
     expect(data.period_a).toMatchObject({ label: "2025-10-12", hours: 24, average_load_gw: 18, balance_gwh: -48, complete: true });
     expect(data.period_b).toMatchObject({ label: "2026-10-12", hours: 24, average_load_gw: 20, balance_gwh: -24 });
     expect(data.differences).toMatchObject({ average_load_gw: 2, balance_gwh: 24, hours: 0 });
+    // A: 10 lignite of 16 -> 992 * 10/16 = 620; B: 8 of 19 -> 992 * 8/19 = 417.7
+    expect((data.period_a as unknown as { co2_intensity_g_per_kwh: number }).co2_intensity_g_per_kwh).toBe(620);
+    expect((data.differences as unknown as { co2_intensity_g_per_kwh: number }).co2_intensity_g_per_kwh).toBe(Math.round((992 * 8) / 19 - 620));
     // Every source with generation in a period is listed, also in the text.
     expect(data.differences.sources.map((s) => s.key).sort()).toEqual(["generation_lignite", "generation_pumped_storage", "generation_solar"]);
     expect(text).toMatch(/A = 2025-10-12 \(24\.0 hours, complete\), B = 2026-10-12/);

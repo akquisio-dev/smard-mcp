@@ -51,6 +51,7 @@ const outputShape = {
       generation_to_consumption_pp: z.number().nullable(),
       balance_gwh: z.number().nullable(),
       hours: z.number(),
+      co2_intensity_g_per_kwh: z.number().nullable(),
       average_price_eur_mwh: z.number().nullable().optional(),
       average_price_pct: z.number().nullable().optional(),
       sources: z.array(sourceDiff).describe("Every source with generation in at least one period, largest absolute change first"),
@@ -193,6 +194,7 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
                 ? null
                 : diff((ma.raw.totalMWh - ma.raw.loadMWh) / 1000, (mb.raw.totalMWh - mb.raw.loadMWh) / 1000),
             hours: round1(mb.hours - ma.hours) + 0,
+            co2_intensity_g_per_kwh: ma.raw.co2 === null || mb.raw.co2 === null ? null : Math.round(mb.raw.co2 - ma.raw.co2) + 0,
             ...(withPrice
               ? {
                   average_price_eur_mwh: priceA === null || priceB === null ? null : round2(priceB - priceA) + 0,
@@ -225,6 +227,7 @@ function compareText(r: Result): string {
     `Consumption: A ${gwh(a.consumption_gwh)}, B ${gwh(b.consumption_gwh)} (${opt(d.consumption_pct, " %")}).`,
     `Average load: A ${gw(a.average_load_gw)}, B ${gw(b.average_load_gw)} (${opt(d.average_load_gw, " GW")}).`,
     `Generation in % of consumption: A ${pct(a.generation_to_consumption_pct)}, B ${pct(b.generation_to_consumption_pct)} (${opt(d.generation_to_consumption_pp, " pp")}).`,
+    `Estimated CO2 intensity (generation-based, direct emissions): A ${a.co2_intensity_g_per_kwh ?? "n/a"} g/kWh, B ${b.co2_intensity_g_per_kwh ?? "n/a"} g/kWh (${d.co2_intensity_g_per_kwh === null ? "n/a" : `${d.co2_intensity_g_per_kwh > 0 ? "+" : ""}${d.co2_intensity_g_per_kwh} g/kWh`}).`,
     `Generation minus consumption (indicator, not the physical export): A ${opt(a.balance_gwh, " GWh")}, B ${opt(b.balance_gwh, " GWh")}.`,
   ];
   if (a.average_price_eur_mwh !== undefined) {
