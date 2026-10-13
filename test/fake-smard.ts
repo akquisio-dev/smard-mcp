@@ -16,6 +16,8 @@ export type ValueFn = (timestamp: number, region: string) => number | null;
 
 export interface FakeSeries {
   value: ValueFn;
+  /** Quarter-hour values; default: the hourly value repeated. */
+  quarterValue?: ValueFn;
   /** How daily values are derived from hourly ones. */
   aggregate?: "sum" | "mean";
   /** Regions with data; others answer 404. Default: all. */
@@ -70,7 +72,8 @@ export function createFakeSmard(options: FakeSmardOptions) {
       const out: [number, number | null][] = [];
       for (let t = start; t < end; t += step) {
         const hourStart = t - ((t - start) % HOUR);
-        out.push([t, t + step <= options.dataEnd ? s.value(hourStart, region) : null]);
+        const value = resolution === "quarterhour" && s.quarterValue ? s.quarterValue(t, region) : s.value(hourStart, region);
+        out.push([t, t + step <= options.dataEnd ? value : null]);
       }
       return out;
     }
