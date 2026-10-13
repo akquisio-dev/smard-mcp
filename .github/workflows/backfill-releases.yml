@@ -42,7 +42,8 @@ jobs:
             if gh release view "v$version" >/dev/null 2>&1; then
               cmd=(gh release edit "v$version" --notes "$body")
             else
-              cmd=(gh release create "v$version" --target "$sha" --title "v$version" --notes "$body" --latest=false)
+              # The tag exists already, so no --target (which needs more rights).
+              cmd=(gh release create "v$version" --verify-tag --title "v$version" --notes "$body" --latest=false)
             fi
             # Report errors as annotations (readable without access to the logs) and go on.
             if out="$("${cmd[@]}" 2>&1)"; then
