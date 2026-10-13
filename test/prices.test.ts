@@ -5,9 +5,14 @@ import { connect, textOf } from "./helpers.js";
 const HOUR = 3_600_000;
 const DAY_START = Date.parse("2026-10-11T22:00:00Z"); // 2026-10-12 00:00 Berlin
 
-/** On 2026-10-12: 50, 40, ..., -180 EUR/MWh; other days: 100, before Oct 2025: -5. */
+/**
+ * On 2026-10-12: 50, 40, ..., -180 EUR/MWh; 2026-10-05: 0.004 (rounds to 0.00)
+ * except 3 hours at -12.34; in the week of 2025-10-20: -5; other days: 100.
+ */
 function price(t: number): number {
   if (t < Date.parse("2025-10-27T00:00:00Z") && t >= Date.parse("2025-10-20T00:00:00Z")) return -5;
+  const oct5 = Date.parse("2026-10-04T22:00:00Z");
+  if (t >= oct5 && t < oct5 + 24 * HOUR) return [13, 14, 15].includes((t - oct5) / HOUR) ? -12.34 : 0.004;
   if (t >= DAY_START && t < DAY_START + 24 * HOUR) return 50 - 10 * ((t - DAY_START) / HOUR);
   return 100;
 }
@@ -19,6 +24,7 @@ function backend(dataEnd = "2026-10-13T22:00:00Z") {
 interface P {
   time: string;
   price_eur_mwh: number;
+  count?: number;
 }
 interface Result {
   bidding_zone: string;
@@ -33,8 +39,10 @@ interface Result {
   negative_count: number;
   negative_prices: P[];
   negative_list_truncated: boolean;
-  cheapest: P[];
-  most_expensive: P[];
+  cheapest?: P[];
+  most_expensive?: P[];
+  all_prices?: P[];
+  context?: { reference_mean_eur_mwh: number; deviation_pct: number | null } | null;
   daily_averages: { date: string; mean_eur_mwh: number }[];
   data_until: string;
   notes: string[];
@@ -54,16 +62,18 @@ describe("analyze_prices", () => {
     expect(data.count).toBe(24);
     expect(data.mean_eur_mwh).toBe(-65);
     expect(data.median_eur_mwh).toBe(-65);
-    expect(data.max).toEqual({ time: "2026-10-12T00:00:00+02:00", price_eur_mwh: 50 });
-    expect(data.min).toEqual({ time: "2026-10-12T23:00:00+02:00", price_eur_mwh: -180 });
+    expect(data.max).toEqual({ time: "2026-10-12T00:00:00+02:00", price_eur_mwh: 50, count: 1 });
+    expect(data.min).toEqual({ time: "2026-10-12T23:00:00+02:00", price_eur_mwh: -180, count: 1 });
     expect(data.negative_count).toBe(18);
     expect(data.negative_prices[0]).toEqual({ time: "2026-10-12T06:00:00+02:00", price_eur_mwh: -10 });
     expect(data.negative_list_truncated).toBe(false);
-    expect(data.cheapest.map((p) => p.price_eur_mwh)).toEqual([-180, -170, -160]);
-    expect(data.most_expensive.map((p) => p.price_eur_mwh)).toEqual([50, 40, 30]);
+    expect(data.cheapest?.map((p) => p.price_eur_mwh)).toEqual([-180, -170, -160]);
+    expect(data.most_expensive?.map((p) => p.price_eur_mwh)).toEqual([50, 40, 30]);
+    expect(data.all_prices).toBeUndefined();
     expect(data.daily_averages).toEqual([{ date: "2026-10-12", mean_eur_mwh: -65 }]);
     expect(data.notes).toEqual([]);
     expect(text).toMatch(/Negative prices in 18 hours/);
+    expect(text).toMatch(/Mean -65\.00 EUR\/MWh/);
   });
 
   it("handles the 25-hour day and caps the list of negative prices", async () => {
@@ -118,5 +128,39 @@ describe("analyze_prices without data", () => {
     expect(res.isError).toBe(true);
     expect(text).toMatch(/newest data reaches until 2026-10-14T00:00:00\+02:00/);
     expect(text).toMatch(/price_de_lu/);
+  });
+});
+
+describe("analyze_prices output details", () => {
+  it("keeps two decimals and reports ties", async () => {
+    const { data, text } = await analyze({ from: "2026-10-05", top_n: 3, context: false });
+    expect(data.min).toEqual({ time: "2026-10-05T13:00:00+02:00", price_eur_mwh: -12.34, count: 3 });
+    expect(data.max).toEqual({ time: "2026-10-05T00:00:00+02:00", price_eur_mwh: 0, count: 21 });
+    expect(text).toMatch(/Min -12\.34 EUR\/MWh \(3 hours, first at 2026-10-05T13:00:00\+02:00\)/);
+    expect(text).toMatch(/max 0\.00 EUR\/MWh \(21 hours, first at 2026-10-05T00:00:00\+02:00\)/);
+  });
+
+  it("lists all prices chronologically when there are at most 2 * top_n", async () => {
+    const { data, text } = await analyze({ from: "2026-10-12T20:00", to: "2026-10-12T23:59", top_n: 2, context: false });
+    expect(data.count).toBe(4);
+    expect(data.all_prices?.map((p) => p.price_eur_mwh)).toEqual([-150, -160, -170, -180]);
+    expect(data.cheapest).toBeUndefined();
+    expect(data.most_expensive).toBeUndefined();
+    expect(text).toMatch(/All prices: 2026-10-12T20:00:00\+02:00 \(-150\.00\)/);
+  });
+
+  it("puts the period into context of the 30 days before", async () => {
+    const { data, text } = await analyze({ from: "2026-10-12" });
+    // The 30 days before contain one day at about 0 and 29 days at 100.
+    const ref = (29 * 24 * 100 + 21 * 0.004 + 3 * -12.34) / (30 * 24);
+    expect(data.context?.reference_mean_eur_mwh).toBe(Math.round(ref * 100) / 100);
+    expect(data.context?.deviation_pct).toBe(Math.round((1000 * (-65 - ref)) / ref) / 10);
+    expect(text).toMatch(/Context: mean of the 30 days before was 96\.62 EUR\/MWh; this period is -167\.3 %/);
+  });
+
+  it("can switch the context off", async () => {
+    const { data, text } = await analyze({ from: "2026-10-12", context: false });
+    expect(data.context).toBeUndefined();
+    expect(text).not.toMatch(/Context:/);
   });
 });

@@ -3,21 +3,27 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { DAY, HOURLY_MAX_RANGE_MS, INTERVAL_MS, PRICE_KEY, fetchAligned, mean, median, newestDataPoint, noDataMessage } from "../analysis.js";
-import { ATTRIBUTION } from "../catalog.js";
+import { ATTRIBUTION, findSeries } from "../catalog.js";
 import type { DataPoint, SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, guarded, round1, round2, toolResult } from "./common.js";
 import { coverageText } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
 /** Hourly analysis covers up to a year: one series only, at most 54 weekly blocks. */
 const HOURLY_PRICE_MAX_RANGE_MS = 366 * DAY;
 const MAX_NEGATIVE_LISTED = 48;
+/** Length of the reference period before the analysed range. */
+const CONTEXT_DAYS = 30;
 
 /** Start of 15-minute day-ahead trading; before, quarter-hours repeat the hourly price. */
 const QUARTER_HOUR_AUCTION_START = Date.parse("2025-09-30T22:00:00Z");
 
 const pricePoint = z.object({ time: z.string(), price_eur_mwh: z.number() });
+const extremum = pricePoint.extend({
+  time: z.string().describe("First interval with this price"),
+  count: z.number().describe("Number of intervals with exactly this price"),
+});
 
 const outputShape = {
   bidding_zone: z.literal("DE-LU"),
@@ -31,20 +37,45 @@ const outputShape = {
   count: z.number().describe("Number of intervals with a price"),
   mean_eur_mwh: z.number().nullable(),
   median_eur_mwh: z.number().nullable(),
-  min: pricePoint.nullable(),
-  max: pricePoint.nullable(),
+  min: extremum.nullable(),
+  max: extremum.nullable(),
   negative_count: z.number().describe("Intervals with a price below 0"),
   negative_prices: z.array(pricePoint).describe(`Intervals with negative prices, chronological, at most ${MAX_NEGATIVE_LISTED}`),
   negative_list_truncated: z.boolean(),
-  cheapest: z.array(pricePoint).describe("Cheapest intervals, cheapest first"),
-  most_expensive: z.array(pricePoint).describe("Most expensive intervals, most expensive first"),
+  all_prices: z.array(pricePoint).optional().describe("All prices, chronological; given instead of cheapest/most_expensive when count <= 2 * top_n"),
+  cheapest: z.array(pricePoint).optional().describe("Cheapest intervals, cheapest first"),
+  most_expensive: z.array(pricePoint).optional().describe("Most expensive intervals, most expensive first"),
   daily_averages: z.array(z.object({ date: z.string(), mean_eur_mwh: z.number() })),
+  context: z
+    .object({
+      reference_from: z.string(),
+      reference_to: z.string(),
+      reference_mean_eur_mwh: z.number(),
+      deviation_pct: z.number().nullable().describe("Mean of the period relative to the reference mean, in %"),
+    })
+    .nullable()
+    .optional()
+    .describe(`Mean hourly price of the ${CONTEXT_DAYS} days before the period, to judge whether prices were high or low`),
   notes: z.array(z.string()),
   source: z.string(),
 };
 
+type Result = z.infer<z.ZodObject<typeof outputShape>>;
+
+/** Prices have a resolution of 0.01 EUR/MWh, so they keep two decimals. */
+function price(n: number): number {
+  return round2(n) + 0;
+}
+
 function point(p: DataPoint) {
-  return { time: formatBerlin(p.timestamp), price_eur_mwh: round1(p.value) + 0 };
+  return { time: formatBerlin(p.timestamp), price_eur_mwh: price(p.value) };
+}
+
+/** First interval with the given extreme value plus how often it occurs. */
+function extremeOf(points: readonly DataPoint[], value: number | undefined) {
+  if (value === undefined) return null;
+  const hits = points.filter((p) => p.value === value);
+  return { ...point(hits[0]!), count: hits.length };
 }
 
 /** Pure statistics over price points (ascending by time). */
@@ -65,19 +96,31 @@ export function priceStats(points: readonly DataPoint[], topN: number) {
 
   const avg = mean(values);
   const med = median(values);
+  // With few values, top and bottom lists would overlap; list everything instead.
+  const listAll = points.length <= 2 * topN;
   return {
     count: points.length,
-    mean_eur_mwh: avg === null ? null : round1(avg) + 0,
-    median_eur_mwh: med === null ? null : round1(med) + 0,
-    min: ascending[0] ? point(ascending[0]) : null,
-    max: descending[0] ? point(descending[0]) : null,
+    mean_eur_mwh: avg === null ? null : price(avg),
+    median_eur_mwh: med === null ? null : price(med),
+    min: extremeOf(points, ascending[0]?.value),
+    max: extremeOf(points, descending[0]?.value),
     negative_count: negatives.length,
     negative_prices: negatives.slice(0, MAX_NEGATIVE_LISTED).map(point),
     negative_list_truncated: negatives.length > MAX_NEGATIVE_LISTED,
-    cheapest: ascending.slice(0, topN).map(point),
-    most_expensive: descending.slice(0, topN).map(point),
-    daily_averages: [...byDay].map(([date, v]) => ({ date, mean_eur_mwh: round1(mean(v)!) + 0 })),
+    ...(listAll
+      ? { all_prices: points.map(point) }
+      : { cheapest: ascending.slice(0, topN).map(point), most_expensive: descending.slice(0, topN).map(point) }),
+    daily_averages: [...byDay].map(([date, v]) => ({ date, mean_eur_mwh: price(mean(v)!) })),
   };
+}
+
+/** Mean hourly price of the CONTEXT_DAYS days before `from`. */
+async function referenceMean(client: SmardClient, from: number): Promise<{ from: number; to: number; mean: number } | null> {
+  const info = findSeries(PRICE_KEY)!;
+  const refFrom = from - CONTEXT_DAYS * DAY;
+  const points = await client.getRange(info.filter, "DE", "hour", refFrom, from, { maxBlocks: 8 });
+  const avg = mean(points.map((p) => p.value));
+  return avg === null ? null : { from: refFrom, to: from, mean: avg };
 }
 
 export function registerAnalyzePrices(server: McpServer, client: SmardClient): void {
@@ -86,8 +129,10 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
     {
       title: "Analyze day-ahead prices",
       description:
-        "Statistics of the day-ahead price of the DE-LU bidding zone for a period: mean, median, min/max with time, " +
-        `count and list of intervals with negative prices (at most ${MAX_NEGATIVE_LISTED} listed), the N cheapest and most expensive intervals and daily averages. ` +
+        "Statistics of the day-ahead price of the DE-LU bidding zone for a period: mean, median, min/max with time and number of ties, " +
+        `count and list of intervals with negative prices (at most ${MAX_NEGATIVE_LISTED} listed), the N cheapest and most expensive intervals ` +
+        "(or all prices if there are at most 2N), daily averages, and as context the mean of the 30 days before with the deviation in %. " +
+        "Prices in EUR/MWh with two decimals. " +
         "Resolution hour (up to 1 year) or quarterhour (up to 8 weeks; 15-minute prices exist since 1 Oct 2025). " +
         "Prices for tomorrow are available after the day-ahead auction around noon. Without from/to: yesterday.",
       inputSchema: {
@@ -95,11 +140,12 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
         to: z.string().optional().describe("End (exclusive); a plain YYYY-MM-DD includes that day. Default: end of the from day."),
         resolution: z.enum(["hour", "quarterhour"]).default("hour"),
         top_n: z.number().int().min(1).max(48).default(5).describe("How many cheapest and most expensive intervals to list."),
+        context: z.boolean().default(true).describe(`Compare with the mean of the ${CONTEXT_DAYS} days before the period.`),
       },
       outputSchema: outputShape,
       annotations: { title: "Analyze day-ahead prices", ...READ_ONLY_REMOTE },
     },
-    async ({ from, to, resolution, top_n }) =>
+    async ({ from, to, resolution, top_n, context }) =>
       guarded(async () => {
         const range = parseRange(from, to);
         const limit = resolution === "hour" ? HOURLY_PRICE_MAX_RANGE_MS : HOURLY_MAX_RANGE_MS;
@@ -120,16 +166,33 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
           notes.push("Before 1 Oct 2025 the day-ahead auction was hourly; quarter-hour values in that part repeat the hourly price.");
         }
 
-        const result = {
-          bidding_zone: "DE-LU" as const,
-          region: "DE-LU" as const,
+        const stats = priceStats(points, top_n);
+        let contextResult: Result["context"];
+        if (context) {
+          const ref = await referenceMean(client, data.from);
+          if (ref === null) notes.push(`No prices for the ${CONTEXT_DAYS} days before the period, so there is no comparison.`);
+          contextResult =
+            ref === null
+              ? null
+              : {
+                  reference_from: formatBerlin(ref.from),
+                  reference_to: formatBerlin(ref.to),
+                  reference_mean_eur_mwh: price(ref.mean),
+                  deviation_pct: stats.mean_eur_mwh === null || ref.mean === 0 ? null : round1((100 * (mean(points.map((p) => p.value))! - ref.mean)) / Math.abs(ref.mean)) + 0,
+                };
+        }
+
+        const result: Result = {
+          bidding_zone: "DE-LU",
+          region: "DE-LU",
           from: formatBerlin(data.from),
           to: formatBerlin(data.to),
           resolution,
           covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
           complete: data.complete,
           data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
-          ...priceStats(points, top_n),
+          ...stats,
+          ...(context ? { context: contextResult } : {}),
           notes,
           source: ATTRIBUTION,
         };
@@ -138,22 +201,33 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
   );
 }
 
-function pricesText(
-  r: ReturnType<typeof priceStats> & { from: string; to: string; resolution: string; complete: boolean; covered_until: string | null; notes: string[]; source: string },
-  unit: string,
-): string {
-  const eur = (n: number | null) => (n === null ? "n/a" : `${fmt1(n)} EUR/MWh`);
-  const at = (p: { time: string; price_eur_mwh: number } | null) => (p ? `${fmt1(p.price_eur_mwh)} EUR/MWh at ${p.time}` : "n/a");
+function pricesText(r: Result, unit: string): string {
+  const eur = (n: number | null) => (n === null ? "n/a" : `${n.toFixed(2)} EUR/MWh`);
+  const list = (ps: { time: string; price_eur_mwh: number }[]) => ps.map((p) => `${p.time} (${p.price_eur_mwh.toFixed(2)})`).join(", ");
+  const ext = (e: Result["min"]) => {
+    if (!e) return "n/a";
+    return e.count > 1 ? `${eur(e.price_eur_mwh)} (${e.count} ${unit}, first at ${e.time})` : `${eur(e.price_eur_mwh)} at ${e.time}`;
+  };
   const lines = [
     `Day-ahead prices DE-LU, ${r.from} to ${r.to} (${r.resolution} values, ${coverageText(r)}):`,
     `Mean ${eur(r.mean_eur_mwh)}, median ${eur(r.median_eur_mwh)}, ${r.count} ${unit}.`,
-    `Min ${at(r.min)}; max ${at(r.max)}.`,
+    `Min ${ext(r.min)}; max ${ext(r.max)}.`,
     `Negative prices in ${r.negative_count} ${unit}.`,
-    `Cheapest: ${r.cheapest.map((p) => `${p.time} (${fmt1(p.price_eur_mwh)})`).join(", ") || "n/a"}.`,
-    `Most expensive: ${r.most_expensive.map((p) => `${p.time} (${fmt1(p.price_eur_mwh)})`).join(", ") || "n/a"}.`,
   ];
+  if (r.context) {
+    const d = r.context.deviation_pct;
+    lines.push(
+      `Context: mean of the ${CONTEXT_DAYS} days before was ${eur(r.context.reference_mean_eur_mwh)}; this period is ${d === null ? "n/a" : `${d > 0 ? "+" : ""}${d.toFixed(1)} %`} compared with it.`,
+    );
+  }
+  if (r.all_prices) {
+    lines.push(`All prices: ${list(r.all_prices)}.`);
+  } else {
+    lines.push(`Cheapest: ${list(r.cheapest ?? [])}.`);
+    lines.push(`Most expensive: ${list(r.most_expensive ?? [])}.`);
+  }
   if (r.daily_averages.length > 1 && r.daily_averages.length <= 31) {
-    lines.push(`Daily means: ${r.daily_averages.map((d) => `${d.date} ${fmt1(d.mean_eur_mwh)}`).join(", ")}.`);
+    lines.push(`Daily means: ${r.daily_averages.map((d) => `${d.date} ${d.mean_eur_mwh.toFixed(2)}`).join(", ")}.`);
   } else if (r.daily_averages.length > 31) {
     lines.push(`Daily means for ${r.daily_averages.length} days are in the structured result.`);
   }
