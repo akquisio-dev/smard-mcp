@@ -65,6 +65,7 @@ PORT=8450 npm start   # serves http://127.0.0.1:8450/mcp and /health
 - "Compare the generation mix of October 2025 and October 2026."
 - "How many hours with negative prices were there in the last 12 months, and when was power cheapest?"
 - "Show the wind onshore forecast for tomorrow."
+- "How much electricity did Germany import yesterday, and from which countries?"
 
 ## Tools
 
@@ -77,14 +78,15 @@ two decimals, shares in %.
 
 ### Analysis
 
-| Tool                  | Purpose                                                                                                                                                                                                                                                                |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_market_overview` | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                                                                      |
-| `find_best_hours`     | Best contiguous window of a day (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out. |
-| `get_co2_intensity`   | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                        |
-| `get_generation_mix`  | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption, CO2 intensity. Regions: DE and the four TSO zones.                                                          |
-| `compare_periods`     | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                      |
-| `analyze_prices`      | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                     |
+| Tool                     | Purpose                                                                                                                                                                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_market_overview`    | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                                                                      |
+| `find_best_hours`        | Best contiguous window of a day (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out. |
+| `get_co2_intensity`      | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                        |
+| `get_cross_border_flows` | Electricity exchanged with neighbouring countries: net export or import, total exports and imports, per country and the hours with the largest net import/export. Physical (measured) or commercial (scheduled trades).                                                |
+| `get_generation_mix`     | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption, CO2 intensity. Regions: DE and the four TSO zones.                                                          |
+| `compare_periods`        | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                      |
+| `analyze_prices`         | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                     |
 
 For periods without any data, for example in the future, the analysis tools return an error that
 names the newest available data; use `get_series` with a `forecast_*` series or `price_de_lu`
@@ -96,20 +98,24 @@ never used for totals, because SMARD leaves the running period empty. All series
 cut at their newest common data point, so shares never mix different time horizons; a series
 that ended long before the others (nuclear, last value January 2024) is reported in the notes
 instead of holding the others back. Pumped storage does not count as renewable, as on SMARD.
-Generation minus consumption is an indicator for net exports, not the exact physical exchange
-(pumped storage and grid losses are included).
+Cross-border flows come from SMARD in two kinds: physical flows (measured, about 1 to 2 hours behind
+real time) and commercial exchanges (scheduled trades, available until the end of the current day).
+Exports are positive, imports negative. For a TSO zone only its borders to other countries count,
+so the four zones add up to Germany. `get_generation_mix`, `compare_periods` and
+`get_market_overview` report the measured physical net export as `net_export_gwh`;
+`balance_gwh` (generation minus consumption) remains as a rough indicator.
 
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to
 8 weeks (15-minute day-ahead prices exist since 1 October 2025). Its context comparison with the
 30 days before can be switched off with `context: false`.
 
-`find_best_hours` uses forecasts (wind + solar generation, consumption) for today and later days
-and actual values for past days; intervals that have already started are left out. `balanced`
-scales price and green share each to 0..1 over the intervals of the day (cheapest = 1, greenest =
-
-1. and weighs them equally. `region` only changes the green share; the price is always that of the
-   DE-LU bidding zone. Its prices are wholesale day-ahead prices without taxes, levies
-   and grid fees, so for households they matter directly only with a dynamic tariff.
+`find_best_hours` uses actual values for past days, the intraday forecast (updated during the day,
+with the day-ahead forecast where it is missing) for today and the day-ahead forecast for later
+days; intervals that have already started are left out. `balanced` scales price and green share
+each to the range 0 to 1 over the intervals of the day, where the cheapest and the greenest interval
+get 1, and weighs both equally. `region` only changes the green share; the price is always that of
+the DE-LU bidding zone. Its prices are wholesale day-ahead prices without taxes, levies and grid
+fees, so for households they matter directly only with a dynamic tariff.
 
 ### Prompts
 

@@ -32,6 +32,8 @@ const CHECKS: Check[] = [
   { name: "day-ahead price DE-LU (4169)", filter: 4169, region: "DE", resolution: "hour", min: -500, max: 4_000, maxAgeMs: 48 * HOUR, stepMs: HOUR },
   { name: "day-ahead price DE-LU, 15 min (4169)", filter: 4169, region: "DE", resolution: "quarterhour", min: -500, max: 4_000, maxAgeMs: 48 * HOUR, stepMs: HOUR / 4 },
   { name: "forecast solar (125)", filter: 125, region: "DE", resolution: "hour", min: 0, max: 80_000, maxAgeMs: 48 * HOUR, stepMs: HOUR },
+  { name: "physical net export (4963)", filter: 4963, region: "DE", resolution: "hour", min: -30_000, max: 30_000, maxAgeMs: 48 * HOUR, stepMs: HOUR },
+  { name: "intraday forecast wind and solar (5129)", filter: 5129, region: "DE", resolution: "quarterhour", min: 0, max: 40_000, maxAgeMs: 48 * HOUR, stepMs: HOUR / 4 },
   { name: "consumption total, daily (410)", filter: 410, region: "DE", resolution: "day", min: 500_000, max: 2_500_000, maxAgeMs: 72 * HOUR, stepMs: 0 },
 ];
 
