@@ -25,7 +25,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
         "Lists the SMARD time series this server can fetch, with their key, unit and category, plus the supported regions and resolutions and the current server time (Europe/Berlin).",
       inputSchema: {
         category: z
-          .enum(["generation", "consumption", "price", "forecast_generation", "forecast_consumption"])
+          .enum(["generation", "consumption", "price", "forecast_generation", "forecast_consumption", "cross_border"])
           .optional()
           .describe("Only list series of this category."),
       },

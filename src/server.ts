@@ -4,6 +4,7 @@ import { registerPrompts } from "./prompts.js";
 import { SERVER_NAME, SERVER_VERSION } from "./version.js";
 import { SmardClient } from "./smard.js";
 import { registerMarketOverview } from "./tools/market-overview.js";
+import { registerCrossBorderFlows } from "./tools/flows.js";
 import { registerBestHours } from "./tools/best-hours.js";
 import { registerCo2Intensity } from "./tools/co2.js";
 import { registerAnalyzePrices } from "./tools/prices.js";
@@ -45,6 +46,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
   registerCo2Intensity(server, client);
   registerBestHours(server, client);
   registerMarketOverview(server, client);
+  registerCrossBorderFlows(server, client);
   registerPrompts(server);
 
   return server;

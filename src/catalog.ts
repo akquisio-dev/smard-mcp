@@ -6,7 +6,9 @@
  * Names are kept stable because clients refer to series by `key`.
  */
 
-export type Category = "generation" | "consumption" | "price" | "forecast_generation" | "forecast_consumption";
+import { BORDERS, NET_EXPORT_FILTER } from "./borders.js";
+
+export type Category = "generation" | "consumption" | "price" | "forecast_generation" | "forecast_consumption" | "cross_border";
 
 export interface SeriesInfo {
   key: string;
@@ -85,12 +87,40 @@ export const SERIES: readonly SeriesInfo[] = [
   { key: "forecast_generation_wind_and_solar", filter: 5097, category: "forecast_generation", name: "Forecast generation: wind and photovoltaics", unit: "MWh" },
   { key: "forecast_consumption_total", filter: 411, category: "forecast_consumption", name: "Forecast consumption: total", unit: "MWh" },
   { key: "forecast_consumption_residual_load", filter: 4362, category: "forecast_consumption", name: "Forecast consumption: residual load", unit: "MWh" },
+
+  // Cross-border flows across all borders of the region: exports minus imports
+  // (positive = net export). For TSO zones only borders to other countries.
+  { key: "flow_physical_net_export", filter: NET_EXPORT_FILTER.physical, category: "cross_border", name: "Cross-border physical flow: net export", unit: "MWh" },
+  { key: "flow_commercial_net_export", filter: NET_EXPORT_FILTER.commercial, category: "cross_border", name: "Cross-border commercial exchange: net export", unit: "MWh" },
 ];
 
 export const SERIES_KEYS = SERIES.map((s) => s.key) as [string, ...string[]];
 
+/**
+ * Per-country flow series, used by get_cross_border_flows. Not listed in
+ * list_series: their SMARD id depends on the region, so each one belongs to
+ * exactly one region (see borders.ts).
+ */
+export const BORDER_SERIES: readonly SeriesInfo[] = BORDERS.flatMap((b) =>
+  (["physical", "commercial"] as const).flatMap((kind) =>
+    (["export", "import"] as const).map((direction) => ({
+      key: borderSeriesKey(b.region, b.code, kind, direction),
+      filter: b[kind][direction],
+      category: "cross_border" as const,
+      name: `${kind === "physical" ? "Physical flow" : "Commercial exchange"}: ${direction} ${direction === "export" ? "to" : "from"} ${b.name} (${b.region})`,
+      unit: "MWh" as const,
+    })),
+  ),
+);
+
+export function borderSeriesKey(region: string, code: string, kind: "physical" | "commercial", direction: "export" | "import"): string {
+  return `flow_${kind}_${region}_${code}_${direction}`;
+}
+
+const ALL_SERIES = new Map([...SERIES, ...BORDER_SERIES].map((s) => [s.key, s]));
+
 export function findSeries(key: string): SeriesInfo | undefined {
-  return SERIES.find((s) => s.key === key);
+  return ALL_SERIES.get(key);
 }
 
 export const GENERATION_SERIES = SERIES.filter((s) => s.category === "generation");
