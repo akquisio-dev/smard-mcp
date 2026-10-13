@@ -77,14 +77,14 @@ two decimals, shares in %.
 
 ### Analysis
 
-| Tool                  | Purpose                                                                                                                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `get_market_overview` | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                  |
-| `find_best_hours`     | Best contiguous window of a day (1 to 12 hours) by price, green share (wind + solar in % of consumption) or both, the worst window for comparison and an hourly table. Defaults to tomorrow once prices are out.   |
-| `get_co2_intensity`   | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                    |
-| `get_generation_mix`  | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption, CO2 intensity. Regions: DE and the four TSO zones.      |
-| `compare_periods`     | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                  |
-| `analyze_prices`      | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before. |
+| Tool                  | Purpose                                                                                                                                                                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_market_overview` | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                                                                      |
+| `find_best_hours`     | Best contiguous window of a day (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out. |
+| `get_co2_intensity`   | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                        |
+| `get_generation_mix`  | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption, CO2 intensity. Regions: DE and the four TSO zones.                                                          |
+| `compare_periods`     | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                      |
+| `analyze_prices`      | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                     |
 
 For periods without any data, for example in the future, the analysis tools return an error that
 names the newest available data; use `get_series` with a `forecast_*` series or `price_de_lu`
@@ -104,8 +104,12 @@ Generation minus consumption is an indicator for net exports, not the exact phys
 30 days before can be switched off with `context: false`.
 
 `find_best_hours` uses forecasts (wind + solar generation, consumption) for today and later days
-and actual values for past days. Its prices are wholesale day-ahead prices without taxes, levies
-and grid fees, so for households they matter directly only with a dynamic tariff.
+and actual values for past days; intervals that have already started are left out. `balanced`
+scales price and green share each to 0..1 over the intervals of the day (cheapest = 1, greenest =
+
+1. and weighs them equally. `region` only changes the green share; the price is always that of the
+   DE-LU bidding zone. Its prices are wholesale day-ahead prices without taxes, levies
+   and grid fees, so for households they matter directly only with a dynamic tariff.
 
 ### Prompts
 
