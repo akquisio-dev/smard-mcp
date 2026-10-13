@@ -68,27 +68,35 @@ PORT=8450 npm start   # serves http://127.0.0.1:8450/mcp and /health
 
 All tools are read-only. Times are Europe/Berlin; a date without time means midnight Berlin, and a
 date-time without offset is read as Berlin local time. Every result names the period, the region,
-the resolution used, the newest data point (`data_until`), notes on incomplete data, and the
-source.
+the resolution used, how far the data reaches (`covered_until`, the end of the last included
+interval), whether it covers the whole requested range (`complete`), notes, and the source.
+Energy is given in GWh (TWh added in texts from 10,000 GWh), load in GW, prices in EUR/MWh with
+two decimals, shares in %.
 
 ### Analysis
 
-| Tool                 | Purpose                                                                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `get_generation_mix` | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW and generation in % of consumption. Regions: DE and the four TSO zones. |
-| `compare_periods`    | Two periods side by side: mix, renewable share, consumption and (DE) mean price, with differences B minus A in GWh, percentage points and EUR/MWh.                       |
-| `analyze_prices`     | DE-LU day-ahead prices: mean, median, min/max with time, negative prices, the N cheapest and most expensive intervals, daily means.                                      |
+| Tool                 | Purpose                                                                                                                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_generation_mix` | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption. Regions: DE and the four TSO zones.                     |
+| `compare_periods`    | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                  |
+| `analyze_prices`     | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before. |
+
+For periods without any data, for example in the future, the analysis tools return an error that
+names the newest available data; use `get_series` with a `forecast_*` series or `price_de_lu`
+instead.
 
 `get_generation_mix` and `compare_periods` use hourly values for periods up to 8 weeks and daily
 values above (daily values are published up to the previous day). Week, month and year values are
 never used for totals, because SMARD leaves the running period empty. All series of one result are
 cut at their newest common data point, so shares never mix different time horizons; a series
 that ended long before the others (nuclear, last value January 2024) is reported in the notes
-instead of holding the others back. Pumped storage
-does not count as renewable, as on SMARD.
+instead of holding the others back. Pumped storage does not count as renewable, as on SMARD.
+Generation minus consumption is an indicator for net exports, not the exact physical exchange
+(pumped storage and grid losses are included).
 
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to
-8 weeks (15-minute day-ahead prices exist since 1 October 2025).
+8 weeks (15-minute day-ahead prices exist since 1 October 2025). Its context comparison with the
+30 days before can be switched off with `context: false`.
 
 ### Raw data
 
