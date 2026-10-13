@@ -112,7 +112,7 @@ describe("get_generation_mix", () => {
     expect(data.hours).toBe(hours);
     const client = await connect(smard.fetch);
     const text = textOf(await client.callTool({ name: "get_generation_mix", arguments: { from: "2026-01-01", to: "2026-03-31" } }));
-    expect(text).toMatch(/Total generation 108\d{3}\.\d GWh \(108\.\d TWh\)/);
+    expect(text).toMatch(/Total generation 108\d{3}\.\d GWh = 108\.\d TWh,/);
   });
 
   it("cuts all series at the newest common data point and says so", async () => {

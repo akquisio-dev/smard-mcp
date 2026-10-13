@@ -185,9 +185,9 @@ export function registerGenerationMix(server: McpServer, client: SmardClient): v
   );
 }
 
-/** GWh with one decimal, plus TWh from 10,000 GWh on. */
+/** GWh with one decimal, plus "= x TWh" from 10,000 GWh on. */
 export function energyText(gwh: number): string {
-  return Math.abs(gwh) >= 10_000 ? `${fmt1(gwh)} GWh (${fmt1(gwh / 1000)} TWh)` : `${fmt1(gwh)} GWh`;
+  return Math.abs(gwh) >= 10_000 ? `${fmt1(gwh)} GWh = ${fmt1(gwh / 1000)} TWh` : `${fmt1(gwh)} GWh`;
 }
 
 export function signed(n: number, unit: string): string {
