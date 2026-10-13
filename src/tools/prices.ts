@@ -50,12 +50,20 @@ const outputShape = {
     .object({
       reference_from: z.string(),
       reference_to: z.string(),
-      reference_mean_eur_mwh: z.number(),
-      deviation_pct: z.number().nullable().describe("Mean of the period relative to the reference mean, in %"),
+      reference_mean_eur_mwh: z.number().describe("Mean over all hours of the reference period"),
+      deviation_pct: z.number().nullable().describe("Mean of the period relative to reference_mean_eur_mwh, in %"),
+      hours_compared: z.string().describe('Berlin clock hours the period covers, e.g. "17:00 to 20:00" or "all hours"'),
+      same_hours_mean_eur_mwh: z.number().nullable().describe("Mean over the same clock hours of the reference period"),
+      same_hours_deviation_pct: z
+        .number()
+        .nullable()
+        .describe("Mean of the period relative to same_hours_mean_eur_mwh, in %; the fairer comparison for parts of a day"),
     })
     .nullable()
     .optional()
-    .describe(`Mean hourly price of the ${CONTEXT_DAYS} days before the period, to judge whether prices were high or low`),
+    .describe(
+      `Prices of the ${CONTEXT_DAYS} days before the period, overall and at the same clock hours, to judge whether prices were high or low`,
+    ),
   notes: z.array(z.string()),
   source: z.string(),
 };
@@ -114,13 +122,42 @@ export function priceStats(points: readonly DataPoint[], topN: number) {
   };
 }
 
-/** Mean hourly price of the CONTEXT_DAYS days before `from`. */
-async function referenceMean(client: SmardClient, from: number): Promise<{ from: number; to: number; mean: number } | null> {
+/** Berlin clock hour ("00" to "23") of a timestamp. */
+function clockHour(timestamp: number): string {
+  return formatBerlin(timestamp).slice(11, 13);
+}
+
+/** "17:00 to 20:00", "06:00 to 08:00, 17:00 to 19:00" or "all hours". */
+export function hoursLabel(hours: ReadonlySet<string>): string {
+  if (hours.size >= 24) return "all hours";
+  const sorted = [...hours].map(Number).sort((a, b) => a - b);
+  const runs: [number, number][] = [];
+  for (const h of sorted) {
+    const last = runs[runs.length - 1];
+    if (last && h === last[1] + 1) last[1] = h;
+    else runs.push([h, h]);
+  }
+  const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
+  return runs.map(([a, b]) => `${hh(a)} to ${hh(b + 1)}`).join(", ");
+}
+
+/**
+ * Mean hourly price of the CONTEXT_DAYS days before `from`, overall and at
+ * the given clock hours only. A period of a few evening hours is thereby
+ * compared with evenings, not with the whole day.
+ */
+async function referenceMean(
+  client: SmardClient,
+  from: number,
+  hours: ReadonlySet<string>,
+): Promise<{ from: number; to: number; mean: number; sameHoursMean: number | null } | null> {
   const info = findSeries(PRICE_KEY)!;
   const refFrom = from - CONTEXT_DAYS * DAY;
   const points = await client.getRange(info.filter, "DE", "hour", refFrom, from, { maxBlocks: 8 });
   const avg = mean(points.map((p) => p.value));
-  return avg === null ? null : { from: refFrom, to: from, mean: avg };
+  if (avg === null) return null;
+  const same = mean(points.filter((p) => hours.has(clockHour(p.timestamp))).map((p) => p.value));
+  return { from: refFrom, to: from, mean: avg, sameHoursMean: same };
 }
 
 export function registerAnalyzePrices(server: McpServer, client: SmardClient): void {
@@ -131,7 +168,8 @@ export function registerAnalyzePrices(server: McpServer, client: SmardClient): v
       description:
         "Statistics of the day-ahead price of the DE-LU bidding zone for a period: mean, median, min/max with time and number of ties, " +
         `count and list of intervals with negative prices (at most ${MAX_NEGATIVE_LISTED} listed), the N cheapest and most expensive intervals ` +
-        "(or all prices if there are at most 2N), daily averages, and as context the mean of the 30 days before with the deviation in %. " +
+        "(or all prices if there are at most 2N), daily averages, and as context the mean of the 30 days before with the deviation in %, " +
+        "also at the same clock hours (for parts of a day, e.g. evenings, compare with same_hours_deviation_pct). " +
         "Prices in EUR/MWh with two decimals. " +
         "Resolution hour (up to 1 year) or quarterhour (up to 8 weeks; 15-minute prices exist since 1 Oct 2025). " +
         "Prices for tomorrow are available after the day-ahead auction around noon. Without from/to: yesterday.",
@@ -189,8 +227,12 @@ export async function analyzePrices(
   const stats = priceStats(points, topN);
   let contextResult: Result["context"];
   if (context) {
-    const ref = await referenceMean(client, data.from);
+    const hours = new Set(points.map((p) => clockHour(p.timestamp)));
+    const ref = await referenceMean(client, data.from, hours);
     if (ref === null) notes.push(`No prices for the ${CONTEXT_DAYS} days before the period, so there is no comparison.`);
+    const periodMean = mean(points.map((p) => p.value))!;
+    const deviation = (reference: number | null) =>
+      reference === null || reference === 0 ? null : round1((100 * (periodMean - reference)) / Math.abs(reference)) + 0;
     contextResult =
       ref === null
         ? null
@@ -198,7 +240,10 @@ export async function analyzePrices(
             reference_from: formatBerlin(ref.from),
             reference_to: formatBerlin(ref.to),
             reference_mean_eur_mwh: price(ref.mean),
-            deviation_pct: ref.mean === 0 ? null : round1((100 * (mean(points.map((p) => p.value))! - ref.mean)) / Math.abs(ref.mean)) + 0,
+            deviation_pct: deviation(ref.mean),
+            hours_compared: hoursLabel(hours),
+            same_hours_mean_eur_mwh: ref.sameHoursMean === null ? null : price(ref.sameHoursMean),
+            same_hours_deviation_pct: deviation(ref.sameHoursMean),
           };
   }
 
@@ -232,9 +277,12 @@ function pricesText(r: Result, unit: string): string {
     `Negative prices in ${r.negative_count} ${unit}.`,
   ];
   if (r.context) {
-    const d = r.context.deviation_pct;
+    const c = r.context;
+    const pct = (d: number | null) => (d === null ? "n/a" : `${d > 0 ? "+" : ""}${d.toFixed(1)} %`);
     lines.push(
-      `Context: mean of the ${CONTEXT_DAYS} days before was ${eur(r.context.reference_mean_eur_mwh)}; this period is ${d === null ? "n/a" : `${d > 0 ? "+" : ""}${d.toFixed(1)} %`} compared with it.`,
+      c.hours_compared === "all hours"
+        ? `Context: mean of the ${CONTEXT_DAYS} days before was ${eur(c.reference_mean_eur_mwh)}; this period is ${pct(c.deviation_pct)} compared with it.`
+        : `Context: at the same hours (${c.hours_compared}) the ${CONTEXT_DAYS} days before averaged ${eur(c.same_hours_mean_eur_mwh)}; this period is ${pct(c.same_hours_deviation_pct)} compared with it (all hours: ${eur(c.reference_mean_eur_mwh)}, ${pct(c.deviation_pct)}).`,
     );
   }
   if (r.all_prices) {

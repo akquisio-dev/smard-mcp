@@ -164,3 +164,57 @@ describe("analyze_prices output details", () => {
     expect(text).not.toMatch(/Context:/);
   });
 });
+
+describe("analyze_prices context at the same clock hours", () => {
+  /** Every day: 200 EUR/MWh from 17:00 to 19:59 Berlin (summer time), else 100. */
+  const evening = () =>
+    createFakeSmard({
+      dataEnd: Date.parse("2026-10-14T00:00:00Z"),
+      series: {
+        4169: {
+          value: (t) => {
+            const h = new Date(t + 2 * HOUR).getUTCHours();
+            return h >= 17 && h < 20 ? 200 : 100;
+          },
+          aggregate: "mean",
+        },
+      },
+    });
+
+  interface Ctx {
+    hours_compared: string;
+    reference_mean_eur_mwh: number;
+    deviation_pct: number;
+    same_hours_mean_eur_mwh: number;
+    same_hours_deviation_pct: number;
+  }
+
+  it("compares an evening with the evenings of the 30 days before", async () => {
+    const { data, text } = await analyze({ from: "2026-10-12T17:00", to: "2026-10-12T20:00" }, evening().fetch);
+    const ctx = (data as unknown as { context: Ctx }).context;
+    expect(ctx.hours_compared).toBe("17:00 to 20:00");
+    expect(ctx.same_hours_mean_eur_mwh).toBe(200);
+    expect(ctx.same_hours_deviation_pct).toBe(0);
+    expect(ctx.reference_mean_eur_mwh).toBe(112.5); // (3 x 200 + 21 x 100) / 24
+    expect(ctx.deviation_pct).toBe(77.8);
+    expect(text).toMatch(/at the same hours \(17:00 to 20:00\) the 30 days before averaged 200\.00 EUR\/MWh; this period is 0\.0 %/);
+  });
+
+  it("keeps the all-hours comparison for whole days", async () => {
+    const { data, text } = await analyze({ from: "2026-10-12" }, evening().fetch);
+    const ctx = (data as unknown as { context: Ctx }).context;
+    expect(ctx.hours_compared).toBe("all hours");
+    expect(ctx.same_hours_mean_eur_mwh).toBe(ctx.reference_mean_eur_mwh);
+    expect(text).toMatch(/Context: mean of the 30 days before was 112\.50 EUR\/MWh; this period is 0\.0 %/);
+  });
+});
+
+describe("hoursLabel", () => {
+  it("joins consecutive hours into ranges", async () => {
+    const { hoursLabel } = await import("../src/tools/prices.js");
+    expect(hoursLabel(new Set(["17", "18", "19"]))).toBe("17:00 to 20:00");
+    expect(hoursLabel(new Set(["06", "07", "17", "18"]))).toBe("06:00 to 08:00, 17:00 to 19:00");
+    expect(hoursLabel(new Set(["23"]))).toBe("23:00 to 24:00");
+    expect(hoursLabel(new Set(Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0"))))).toBe("all hours");
+  });
+});
