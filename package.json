@@ -22,7 +22,8 @@
     "test": "vitest run",
     "start": "node dist/http.js",
     "start:stdio": "node dist/stdio.js",
-    "smoke": "tsc -p tsconfig.build.json && node dist/smoke.js"
+    "smoke": "tsc -p tsconfig.build.json && node dist/smoke.js",
+    "deploy": "bash deploy/deploy.sh"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",
