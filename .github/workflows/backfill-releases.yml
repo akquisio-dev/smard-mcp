@@ -1,10 +1,9 @@
 name: Backfill releases
 
-# One-off: creates tags and GitHub releases for the versions before 1.0.0
-# at the commits that were live, with their CHANGELOG section as notes,
-# and fills in the notes of v1.0.0. Tags created with the workflow's own
-# token do not trigger other workflows, so nothing is published to npm.
-# This file is removed again after it has run.
+# One-off: creates GitHub releases for the tags of the versions before
+# 1.0.0 (pushed separately at the commits that were live), with their
+# CHANGELOG section as notes, and fills in the notes of v1.0.0. Versions
+# without a tag are skipped. This file is removed again after it has run.
 
 on:
   push:
@@ -33,6 +32,12 @@ jobs:
             body="$(notes "$version")"
             if [ "$version" != "1.0.0" ]; then
               body="$body"$'\n\n'"_Pre-1.0 version, deployed on energie.akquisio.eu; not published on npm._"
+            fi
+            # Tags are pushed with a deploy key: the workflow token may not create
+            # tags on commits that contain workflow files.
+            if ! git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+              echo "::notice title=v$version::no tag yet, skipped"
+              continue
             fi
             if gh release view "v$version" >/dev/null 2>&1; then
               cmd=(gh release edit "v$version" --notes "$body")
