@@ -31,33 +31,54 @@ export function berlinOffsetMinutes(ms: number): number {
   return Math.round((asUtc - Math.floor(ms / 1000) * 1000) / 60_000);
 }
 
-/** Midnight Europe/Berlin of the given calendar day, as ms since epoch. */
-export function berlinMidnight(year: number, month: number, day: number): number {
-  const guess = Date.UTC(year, month - 1, day);
-  // Take the offset at the candidate instant itself; DST switches happen at
-  // 01:00 UTC, so they never fall between local midnight and UTC midnight.
+/** Converts a Europe/Berlin wall-clock time to ms since epoch. */
+export function berlinLocalToUtc(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): number {
+  const guess = Date.UTC(year, month - 1, day, hour, minute, second);
+  // Two passes: the offset at the first estimate may differ from the offset at
+  // the result when a DST switch lies in between. Times that do not exist
+  // (spring gap) or exist twice (autumn overlap) resolve to one of the
+  // neighbouring instants.
   const candidate = guess - berlinOffsetMinutes(guess) * 60_000;
   return guess - berlinOffsetMinutes(candidate) * 60_000;
 }
 
+/** Midnight Europe/Berlin of the given calendar day, as ms since epoch. */
+export function berlinMidnight(year: number, month: number, day: number): number {
+  return berlinLocalToUtc(year, month, day);
+}
+
+const LOCAL_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/;
+
 /**
  * Parses an ISO 8601 date or date-time. A plain date (YYYY-MM-DD) means the
  * start of that day in Berlin, or with `endOfDay` the start of the next day.
+ * A date-time without offset is read as Europe/Berlin local time.
  */
 export function parseTime(input: string, endOfDay = false): number {
   const m = DATE_ONLY.exec(input);
   if (m) {
     const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    const check = new Date(Date.UTC(y, mo - 1, d));
-    if (check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) throw new Error(`Invalid date: ${input}`);
+    checkCalendarDate(input, y, mo, d);
     return endOfDay ? berlinMidnight(y, mo, d + 1) : berlinMidnight(y, mo, d);
   }
+  const local = LOCAL_DATE_TIME.exec(input);
+  if (local) {
+    const [y, mo, d, h, mi, sec] = local.slice(1).map((v) => Number(v ?? 0)) as [number, number, number, number, number, number];
+    checkCalendarDate(input, y, mo, d);
+    if (h > 23 || mi > 59 || sec > 59) throw new Error(`Invalid time: ${input}`);
+    return berlinLocalToUtc(y, mo, d, h, mi, sec);
+  }
   if (!/[Tt ]\d{2}:\d{2}/.test(input) || !/(Z|z|[+-]\d{2}:?\d{2})$/.test(input)) {
-    throw new Error(`Invalid time "${input}": use YYYY-MM-DD or a full ISO 8601 date-time with offset, e.g. 2026-10-01T00:00:00+02:00`);
+    throw new Error(`Invalid time "${input}": use YYYY-MM-DD or an ISO 8601 date-time, e.g. 2026-10-01T14:00 (Berlin) or 2026-10-01T12:00:00Z`);
   }
   const ms = Date.parse(input);
   if (Number.isNaN(ms)) throw new Error(`Invalid time: ${input}`);
   return ms;
+}
+
+function checkCalendarDate(input: string, y: number, mo: number, d: number): void {
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) throw new Error(`Invalid date: ${input}`);
 }
 
 /** ISO 8601 in Berlin local time with offset, e.g. 2026-10-12T14:00:00+02:00. */

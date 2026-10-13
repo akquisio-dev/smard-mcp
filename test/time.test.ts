@@ -25,8 +25,15 @@ describe("parseTime", () => {
     expect(parseTime("2026-10-01T10:00:00Z")).toBe(Date.parse("2026-10-01T10:00:00Z"));
   });
 
-  it("rejects ambiguous or invalid input", () => {
-    expect(() => parseTime("2026-10-01T12:00:00")).toThrow(/offset/);
+  it("reads date-times without offset as Berlin local time", () => {
+    expect(parseTime("2026-10-12T14:00:00")).toBe(Date.parse("2026-10-12T12:00:00Z"));
+    expect(parseTime("2026-01-12T14:00")).toBe(Date.parse("2026-01-12T13:00:00Z"));
+    expect(parseTime("2026-03-29T03:00")).toBe(Date.parse("2026-03-29T01:00:00Z"));
+    expect(parseTime("2026-03-29T01:00")).toBe(Date.parse("2026-03-29T00:00:00Z"));
+  });
+
+  it("rejects invalid input", () => {
+    expect(() => parseTime("2026-10-01T25:00:00")).toThrow();
     expect(() => parseTime("yesterday")).toThrow();
     expect(() => parseTime("2026-02-30")).toThrow(/Invalid date/);
   });
