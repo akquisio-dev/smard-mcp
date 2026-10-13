@@ -2,8 +2,8 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { GENERATION_KEYS, INTERVAL_MS, LOAD_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
-import { ATTRIBUTION, type Region } from "../catalog.js";
+import { GENERATION_KEYS, LOAD_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
+import { ATTRIBUTION, GENERATION_SERIES, type Region } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
@@ -30,6 +30,11 @@ export const mixShape = {
     .number()
     .nullable()
     .describe("Generation in % of consumption; above 100 hints at net exports, below at net imports"),
+  balance_gwh: z
+    .number()
+    .nullable()
+    .describe("Generation minus consumption; an indicator only, not the physical exchange (pumped storage, grid losses)"),
+  hours: z.number().describe("Hours covered by the data (23 or 25 on DST switch days)"),
   sources: z.array(sourceSchema).describe("Sources with generation, largest first"),
   sources_without_data: z.array(z.string()).describe("Series with no data or less than 0.05 GWh in the period; left out of sources"),
 };
@@ -53,6 +58,8 @@ export interface Mix {
   consumption_gwh: number | null;
   average_load_gw: number | null;
   generation_to_consumption_pct: number | null;
+  balance_gwh: number | null;
+  hours: number;
   sources: z.infer<typeof sourceSchema>[];
   sources_without_data: string[];
   /** Unrounded values for further calculations (not part of the output). */
@@ -76,7 +83,7 @@ export function computeMix(data: AlignedData): Mix {
 
   const load = data.series.find((s) => s.info.key === LOAD_KEY);
   const loadMWh = load && load.points.length > 0 ? sum(load.points) : null;
-  const hours = load && load.points.length > 0 ? (load.points.length * INTERVAL_MS[data.resolution]) / 3_600_000 : 0;
+  const hours = data.coveredUntil === null ? 0 : (data.coveredUntil - data.from) / 3_600_000;
 
   const sources = data.series
     .filter((s) => s.info.category === "generation" && !withoutData.includes(s.info.key))
@@ -99,6 +106,8 @@ export function computeMix(data: AlignedData): Mix {
     consumption_gwh: loadMWh === null ? null : round1(loadMWh / 1000),
     average_load_gw: loadMWh === null || hours === 0 ? null : round1(loadMWh / 1000 / hours),
     generation_to_consumption_pct: loadMWh ? round1((100 * totalMWh) / loadMWh) : null,
+    balance_gwh: loadMWh === null ? null : round1((totalMWh - loadMWh) / 1000) + 0,
+    hours: round1(hours),
     sources,
     sources_without_data: withoutData,
     raw: { totalMWh, renewableMWh, loadMWh, bySource },
@@ -146,7 +155,8 @@ export function registerGenerationMix(server: McpServer, client: SmardClient): v
       description:
         "Electricity generation by source for a period: energy per source in GWh and share in %, largest first, " +
         "the renewable share (wind, solar, biomass, hydro, other renewables; pumped storage is not renewable, as on SMARD), " +
-        "total consumption (grid load) and generation in % of consumption as an import/export indicator. " +
+        "total consumption (grid load), average load in GW, the number of hours covered, and generation in % of / minus consumption " +
+        "as an import/export indicator (not the exact physical exchange). " +
         "Uses hourly values up to 8 weeks and daily values above. Without from/to: yesterday.",
       inputSchema: {
         from: z.string().optional().describe("Start (inclusive), YYYY-MM-DD or ISO 8601 date-time (Berlin time if no offset). Default: yesterday."),
@@ -167,17 +177,39 @@ export function registerGenerationMix(server: McpServer, client: SmardClient): v
   );
 }
 
+/** GWh with one decimal, plus TWh from 10,000 GWh on. */
+export function energyText(gwh: number): string {
+  return Math.abs(gwh) >= 10_000 ? `${fmt1(gwh)} GWh (${fmt1(gwh / 1000)} TWh)` : `${fmt1(gwh)} GWh`;
+}
+
+export function signed(n: number, unit: string): string {
+  return `${n > 0 ? "+" : ""}${fmt1(n)}${unit}`;
+}
+
+/** Display name of a generation series key, e.g. "nuclear". */
+export function sourceName(key: string): string {
+  return GENERATION_SERIES.find((s) => s.key === key)?.name.replace(/^Generation: /, "") ?? key;
+}
+
 function mixText(r: ReturnType<typeof metaOf> & Omit<Mix, "raw">): string {
   const lines = [
-    `Generation mix ${r.region}, ${r.from} to ${r.to} (${r.resolution} values, ${coverageText(r)}):`,
-    `Total generation ${fmt1(r.total_generation_gwh)} GWh, renewable ${r.renewable_share_pct === null ? "n/a" : fmt1(r.renewable_share_pct) + " %"} (${fmt1(r.renewable_gwh)} GWh).`,
+    `Generation mix ${r.region}, ${r.from} to ${r.to} (${r.resolution} values, ${fmt1(r.hours)} hours, ${coverageText(r)}):`,
+    `Total generation ${energyText(r.total_generation_gwh)}, renewable ${r.renewable_share_pct === null ? "n/a" : fmt1(r.renewable_share_pct) + " %"} (${energyText(r.renewable_gwh)}).`,
   ];
   if (r.consumption_gwh !== null) {
     lines.push(
-      `Consumption ${fmt1(r.consumption_gwh)} GWh (average load ${r.average_load_gw === null ? "n/a" : fmt1(r.average_load_gw) + " GW"}), generation = ${r.generation_to_consumption_pct === null ? "n/a" : fmt1(r.generation_to_consumption_pct) + " %"} of consumption.`,
+      `Consumption ${energyText(r.consumption_gwh)} (average load ${r.average_load_gw === null ? "n/a" : fmt1(r.average_load_gw) + " GW"}), generation = ${r.generation_to_consumption_pct === null ? "n/a" : fmt1(r.generation_to_consumption_pct) + " %"} of consumption.`,
     );
   }
-  for (const s of r.sources) lines.push(`- ${s.name}: ${fmt1(s.energy_gwh)} GWh (${fmt1(s.share_pct)} %)${s.renewable ? ", renewable" : ""}`);
+  if (r.balance_gwh !== null) {
+    lines.push(
+      `Generation minus consumption: ${signed(r.balance_gwh, " GWh")} (indicator only, not the exact physical export: pumped storage and grid losses are included).`,
+    );
+  }
+  for (const s of r.sources) lines.push(`- ${s.name}: ${energyText(s.energy_gwh)} (${fmt1(s.share_pct)} %)${s.renewable ? ", renewable" : ""}`);
+  if (r.sources_without_data.length > 0) {
+    lines.push(`No generation in the period: ${r.sources_without_data.map((k) => `${sourceName(k)} (0 GWh)`).join(", ")}.`);
+  }
   for (const n of r.notes) lines.push(`Note: ${n}`);
   lines.push(`Source: ${r.source}`);
   return lines.join("\n");

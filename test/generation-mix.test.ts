@@ -46,6 +46,8 @@ interface MixResult {
   consumption_gwh: number;
   average_load_gw: number;
   generation_to_consumption_pct: number;
+  balance_gwh: number;
+  hours: number;
   sources: { key: string; energy_gwh: number; share_pct: number; renewable: boolean }[];
   sources_without_data: string[];
 }
@@ -78,7 +80,12 @@ describe("get_generation_mix", () => {
     expect([...gwh].sort((a, b) => b - a)).toEqual(gwh);
     expect(data.sources.some((s) => s.key === "generation_nuclear")).toBe(false);
     expect(data.sources_without_data).toEqual(["generation_nuclear"]);
-    expect(text).toMatch(/Total generation 1202\.4 GWh/);
+    expect(data.hours).toBe(24);
+    expect(data.balance_gwh).toBe((24 * (TOTAL_PER_HOUR - LOAD_PER_HOUR)) / 1000);
+    expect(text).toMatch(/Total generation 1202\.4 GWh,/);
+    expect(text).toMatch(/24\.0 hours, complete/);
+    expect(text).toMatch(/Generation minus consumption: -117\.6 GWh \(indicator only/);
+    expect(text).toMatch(/No generation in the period: nuclear \(0 GWh\)/);
     expect(text).toMatch(/Source: Bundesnetzagentur \| SMARD\.de/);
   });
 
@@ -87,6 +94,7 @@ describe("get_generation_mix", () => {
     expect(data.total_generation_gwh).toBe((25 * TOTAL_PER_HOUR) / 1000);
     expect(data.consumption_gwh).toBe((25 * LOAD_PER_HOUR) / 1000);
     expect(data.average_load_gw).toBe(55);
+    expect(data.hours).toBe(25);
   });
 
   it("switches to daily values above 8 weeks with identical totals", async () => {
@@ -96,6 +104,10 @@ describe("get_generation_mix", () => {
     const hours = (Date.parse("2026-03-31T22:00:00Z") - Date.parse("2025-12-31T23:00:00Z")) / 3_600_000;
     expect(data.total_generation_gwh).toBeCloseTo((hours * TOTAL_PER_HOUR) / 1000, 1);
     expect(smard.calls.some((c) => c.includes("_week_") || c.includes("_month_"))).toBe(false);
+    expect(data.hours).toBe(hours);
+    const client = await connect(smard.fetch);
+    const text = textOf(await client.callTool({ name: "get_generation_mix", arguments: { from: "2026-01-01", to: "2026-03-31" } }));
+    expect(text).toMatch(/Total generation 108\d{3}\.\d GWh \(108\.\d TWh\)/);
   });
 
   it("cuts all series at the newest common data point and says so", async () => {
