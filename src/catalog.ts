@@ -85,6 +85,11 @@ export const SERIES: readonly SeriesInfo[] = [
   { key: "forecast_generation_other", filter: 715, category: "forecast_generation", name: "Forecast generation: other", unit: "MWh" },
   { key: "forecast_generation_wind_offshore", filter: 3791, category: "forecast_generation", name: "Forecast generation: wind offshore", unit: "MWh" },
   { key: "forecast_generation_wind_and_solar", filter: 5097, category: "forecast_generation", name: "Forecast generation: wind and photovoltaics", unit: "MWh" },
+  // Intraday forecasts: updated during the current day, more accurate than day-ahead for today.
+  { key: "forecast_intraday_wind_and_solar", filter: 5129, category: "forecast_generation", name: "Intraday forecast generation: wind and photovoltaics", unit: "MWh" },
+  { key: "forecast_intraday_solar", filter: 5126, category: "forecast_generation", name: "Intraday forecast generation: photovoltaics", unit: "MWh" },
+  { key: "forecast_intraday_wind_onshore", filter: 5127, category: "forecast_generation", name: "Intraday forecast generation: wind onshore", unit: "MWh" },
+  { key: "forecast_intraday_wind_offshore", filter: 5128, category: "forecast_generation", name: "Intraday forecast generation: wind offshore", unit: "MWh" },
   { key: "forecast_consumption_total", filter: 411, category: "forecast_consumption", name: "Forecast consumption: total", unit: "MWh" },
   { key: "forecast_consumption_residual_load", filter: 4362, category: "forecast_consumption", name: "Forecast consumption: residual load", unit: "MWh" },
 

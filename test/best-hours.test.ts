@@ -255,3 +255,39 @@ describe("find_best_hours criteria", () => {
     expect(data.missing).toEqual([]);
   });
 });
+
+describe("find_best_hours intraday forecasts for today", () => {
+  /** Day-ahead says the evening (18-20) is greenest; the intraday update moves it to 21-23, but stops at 22:00. */
+  function smard(intraday: boolean) {
+    const h = (t: number) => (((Math.floor((t - OCT13) / HOUR) % 24) + 24) % 24);
+    const series: Record<number, FakeSeries> = {
+      4169: { value: () => 50, aggregate: "mean" },
+      5097: { value: (t) => (h(t) >= 18 && h(t) < 21 ? 40_000 : 10_000) },
+      411: { value: () => 50_000 },
+    };
+    if (intraday) series[5129] = { value: (t) => (h(t) >= 22 ? null : h(t) >= 21 ? 45_000 : 10_000) };
+    return createFakeSmard({ dataEnd: Date.parse("2026-10-16T00:00:00Z"), series });
+  }
+
+  it("prefers the intraday forecast for today and falls back to day-ahead per interval", async () => {
+    const { data, calls } = await best({ date: "2026-10-13", optimize: "green", duration_hours: 3 }, smard(true), "2026-10-13T10:00:00Z");
+    // Intraday: 21:00 = 90 %; day-ahead fills 22:00 and 23:00 (20 %), 18-20 are 20 % intraday.
+    expect(data.hours.find((r) => r.time.startsWith("2026-10-13T21:00"))?.green_share_pct).toBe(90);
+    expect(data.hours.find((r) => r.time.startsWith("2026-10-13T19:00"))?.green_share_pct).toBe(20);
+    expect(data.hours.find((r) => r.time.startsWith("2026-10-13T22:00"))?.green_share_pct).toBe(20);
+    expect(calls.some((c) => c.startsWith("5129/DE/"))).toBe(true);
+    expect(data.notes.join(" ")).toMatch(/intraday forecast \(updated during the day\)/);
+  });
+
+  it("says when no intraday forecast exists yet", async () => {
+    const { data } = await best({ date: "2026-10-13", optimize: "green" }, smard(false), "2026-10-13T10:00:00Z");
+    expect(data.recommended?.start).toBe("2026-10-13T18:00:00+02:00");
+    expect(data.notes.join(" ")).toMatch(/No intraday forecast is available yet/);
+  });
+
+  it("keeps the day-ahead forecast for tomorrow", async () => {
+    const { data, calls } = await best({ date: "2026-10-14", optimize: "green" }, smard(true), "2026-10-13T10:00:00Z");
+    expect(data.recommended?.start).toBe("2026-10-14T18:00:00+02:00");
+    expect(calls.some((c) => c.startsWith("5129/"))).toBe(false);
+  });
+});

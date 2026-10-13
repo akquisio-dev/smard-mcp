@@ -11,7 +11,8 @@ import { MIX_REGIONS } from "./generation-mix.js";
 
 const WHOLESALE_NOTE =
   "Prices are day-ahead wholesale prices (DE-LU) without taxes, levies and grid fees; for households they matter directly only with a dynamic electricity tariff.";
-const GREEN_DEFINITION = "Green share = wind + solar generation in % of consumption (forecasts for today and later, actual values for past days).";
+const GREEN_DEFINITION =
+  "Green share = wind + solar generation in % of consumption (forecasts for today and later, intraday for today where available, actual values for past days).";
 const BALANCED_DEFINITION =
   "Balanced: per interval, price and green share are each scaled to 0..1 over the intervals of the day (cheapest = 1, greenest = 1) and averaged with equal weight.";
 
@@ -130,32 +131,66 @@ function addUp(parts: (Map<number, number> | null)[]): Map<number, number> | nul
   return out;
 }
 
-/** Rows (price DE-LU, green share of `region`) for [from, to). Forecasts for today and later, actuals before. */
+/** Where the green share comes from: measured values, or which forecast. */
+export type GreenSource = "actual" | "day_ahead" | "intraday";
+
+/**
+ * Prefers the intraday forecast per interval and falls back to day-ahead
+ * where the intraday value is missing.
+ */
+function preferIntraday(intraday: Map<number, number> | null, dayAhead: Map<number, number> | null) {
+  const merged = new Map(dayAhead ?? []);
+  let fromIntraday = 0;
+  for (const [t, v] of intraday ?? []) {
+    merged.set(t, v);
+    fromIntraday++;
+  }
+  return { values: merged, fromIntraday };
+}
+
+/**
+ * Rows (price DE-LU, green share of `region`) for [from, to). The green
+ * share uses actual values for past days, the day-ahead forecast for future
+ * days and, for today, the intraday forecast (updated during the day) with
+ * day-ahead as fallback.
+ */
 export async function loadRows(
   client: SmardClient,
   from: number,
   to: number,
-  useForecast: boolean,
+  source: GreenSource,
   resolution: Resolution = "hour",
   region: Region = "DE",
-): Promise<Row[]> {
+): Promise<{ rows: Row[]; intradayIntervals: number }> {
+  const get = (key: string, r: Region = region) => series(client, key, r, resolution, from, to);
+
+  async function windAndSolar(): Promise<{ values: Map<number, number> | null; intradayIntervals: number }> {
+    if (source === "actual") {
+      const parts = await Promise.all(["generation_wind_onshore", "generation_wind_offshore", "generation_solar"].map((k) => get(k)));
+      return { values: addUp(parts), intradayIntervals: 0 };
+    }
+    if (source === "intraday") {
+      const [intraday, dayAhead] = await Promise.all([get("forecast_intraday_wind_and_solar"), get("forecast_generation_wind_and_solar")]);
+      const merged = preferIntraday(intraday, dayAhead);
+      return { values: merged.values, intradayIntervals: merged.fromIntraday };
+    }
+    return { values: await get("forecast_generation_wind_and_solar"), intradayIntervals: 0 };
+  }
+
   // Prices are the same for every region; SMARD's hourly price is the mean of the four quarter-hours.
   const [price, windSolar, load] = await Promise.all([
-    series(client, "price_de_lu", "DE", resolution, from, to),
-    useForecast
-      ? series(client, "forecast_generation_wind_and_solar", region, resolution, from, to)
-      : Promise.all(
-          ["generation_wind_onshore", "generation_wind_offshore", "generation_solar"].map((k) => series(client, k, region, resolution, from, to)),
-        ).then(addUp),
-    series(client, useForecast ? "forecast_consumption_total" : "consumption_total", region, resolution, from, to),
+    get("price_de_lu", "DE"),
+    windAndSolar(),
+    get(source === "actual" ? "consumption_total" : "forecast_consumption_total"),
   ]);
   const rows: Row[] = [];
   for (let t = from; t < to; t += STEP_MS[resolution]) {
-    const ws = windSolar?.get(t);
+    const w = windSolar.values?.get(t);
     const l = load?.get(t);
-    rows.push({ timestamp: t, price: price?.get(t) ?? null, green: ws !== undefined && l ? (100 * ws) / l : null });
+    rows.push({ timestamp: t, price: price?.get(t) ?? null, green: w !== undefined && l ? (100 * w) / l : null });
   }
-  return rows;
+  const intradayIntervals = windSolar.intradayIntervals;
+  return { rows, intradayIntervals };
 }
 
 const windowSchema = z.object({
@@ -253,7 +288,8 @@ export function registerBestHours(server: McpServer, client: SmardClient): void 
           throw new InputError(`Only ${fmt1((dayEnd - from) / HOUR)} hours are left in this day; choose a shorter duration_hours.`);
         }
 
-        const rows = await loadRows(client, from, dayEnd, dayStart >= today, resolution, region);
+        const source: GreenSource = dayStart < today ? "actual" : dayStart === today ? "intraday" : "day_ahead";
+        const { rows, intradayIntervals } = await loadRows(client, from, dayEnd, source, resolution, region);
         const missing: string[] = [];
         const unit = resolution === "hour" ? "hours" : "quarter-hours";
         const missingPrices = rows.filter((r) => r.price === null).length;
@@ -276,6 +312,13 @@ export function registerBestHours(server: McpServer, client: SmardClient): void 
           notes.push("Before 1 Oct 2025 the day-ahead auction was hourly; quarter-hour prices of that time repeat the hourly price.");
         }
         if (region !== "DE") notes.push(`The green share refers to ${region}; prices are those of the DE-LU bidding zone (there are no regional prices).`);
+        if (source === "intraday") {
+          notes.push(
+            intradayIntervals > 0
+              ? "Green share for today uses SMARD's intraday forecast (updated during the day), with the day-ahead forecast where it is missing."
+              : "No intraday forecast is available yet, so the green share uses the day-ahead forecast.",
+          );
+        }
         notes.push(GREEN_DEFINITION, BALANCED_DEFINITION, WHOLESALE_NOTE);
 
         const result: Result = {
