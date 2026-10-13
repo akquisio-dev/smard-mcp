@@ -64,3 +64,48 @@ describe("SmardClient", () => {
     await expect(client.getIndex(4169, "DE", "hour")).rejects.toThrow(/not reachable/);
   });
 });
+
+describe("SmardClient request handling", () => {
+  it("never runs more than maxConcurrentRequests fetches at once", async () => {
+    let active = 0;
+    let peak = 0;
+    const fetch = vi.fn(async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 5));
+      active--;
+      return new Response(JSON.stringify({ series: [] }));
+    });
+    const client = new SmardClient({ fetch, maxConcurrentRequests: 3 });
+    await Promise.all(Array.from({ length: 12 }, (_, i) => client.getBlock(1, "DE", "hour", i)));
+    expect(fetch).toHaveBeenCalledTimes(12);
+    expect(peak).toBe(3);
+  });
+
+  it("shares one fetch between parallel callers of the same document", async () => {
+    const fetch = fakeFetch();
+    const client = new SmardClient({ fetch });
+    await Promise.all([client.getIndex(4169, "DE", "hour"), client.getIndex(4169, "DE", "hour")]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches the newest block briefly and older blocks longer", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = fakeFetch();
+      const client = new SmardClient({ fetch, cacheTtlMs: 1_000, archiveCacheTtlMs: 100_000 });
+      await client.getRange(4169, "DE", "hour", B0, B1 + HOUR); // index + 2 blocks
+      expect(fetch).toHaveBeenCalledTimes(3);
+      vi.advanceTimersByTime(2_000);
+      await client.getRange(4169, "DE", "hour", B0, B1 + HOUR); // index + newest block again
+      expect(fetch).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("allows a per-call block limit", async () => {
+    const client = new SmardClient({ fetch: fakeFetch(), maxBlocksPerQuery: 1 });
+    await expect(client.getRange(4169, "DE", "hour", B0, B1 + HOUR, { maxBlocks: 2 })).resolves.toHaveLength(4);
+  });
+});
