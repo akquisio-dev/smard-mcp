@@ -2,22 +2,16 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
-import { BORDERS, type Border } from "../borders.js";
+import { chooseResolution, fetchAligned, noDataText, sum, type AlignedData } from "../analysis.js";
 import { borderSeriesKey, type Region } from "../catalog.js";
 import type { DataPoint, SmardClient } from "../smard.js";
+import { FLOW_KINDS, NET_EXPORT_KEYS, bordersOf, countryKeys, countryNetPoints, type FlowKind } from "../flows-data.js";
 import { formatBerlin } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
-import { MIX_REGIONS, coverageText, energyText, metaOf, metaShape, signed } from "./generation-mix.js";
+import { MIX_REGIONS, coverageText, energyText, metaOf, metaShape } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
-export const FLOW_KINDS = ["physical", "commercial"] as const;
-export type FlowKind = (typeof FLOW_KINDS)[number];
-
-export const NET_EXPORT_KEY: Record<FlowKind, string> = {
-  physical: "flow_physical_net_export",
-  commercial: "flow_commercial_net_export",
-};
+export { FLOW_KINDS, type FlowKind } from "../flows-data.js";
 
 const KIND_NOTE: Record<FlowKind, string> = {
   physical:
@@ -52,21 +46,18 @@ const outputShape = {
 
 type Result = z.infer<z.ZodObject<typeof outputShape>>;
 
-export function bordersOf(region: Region): Border[] {
-  return BORDERS.filter((b) => b.region === region);
-}
-
 /** Series keys needed for one region and kind: the net series plus export/import per border. */
 export function flowKeys(region: Region, kind: FlowKind): string[] {
-  return [
-    NET_EXPORT_KEY[kind],
-    ...bordersOf(region).flatMap((b) => [borderSeriesKey(region, b.code, kind, "export"), borderSeriesKey(region, b.code, kind, "import")]),
-  ];
+  return [NET_EXPORT_KEYS[kind], ...countryKeys(region, kind)];
 }
 
 const pointsOf = (data: AlignedData, key: string): DataPoint[] => data.series.find((s) => s.info.key === key)?.points ?? [];
 
-/** Pure computation over aligned flow data. */
+/**
+ * Pure computation over aligned flow data. Net export and peak hours come
+ * from the country series, which exist for the whole SMARD period; SMARD's
+ * net series is only used to cross-check where it covers the range.
+ */
 export function summarizeFlows(data: AlignedData, region: Region, kind: FlowKind) {
   const countries = bordersOf(region)
     .map((b) => {
@@ -75,7 +66,7 @@ export function summarizeFlows(data: AlignedData, region: Region, kind: FlowKind
       return { code: b.code, name: b.name, exportMWh: exp, importMWh: imp };
     })
     .sort((a, b) => Math.abs(b.exportMWh - b.importMWh) - Math.abs(a.exportMWh - a.importMWh));
-  const net = pointsOf(data, NET_EXPORT_KEY[kind]);
+  const net = countryNetPoints(data, region, kind);
   const netMWh = sum(net);
   const exportsMWh = countries.reduce((a, c) => a + c.exportMWh, 0);
   const importsMWh = countries.reduce((a, c) => a + c.importMWh, 0);
@@ -87,7 +78,9 @@ export function summarizeFlows(data: AlignedData, region: Region, kind: FlowKind
       if (!peakExport || p.value > peakExport.value) peakExport = p;
     }
   }
-  return { countries, netMWh, exportsMWh, importsMWh, peakImport, peakExport, hasNet: net.length > 0 };
+  const official = pointsOf(data, NET_EXPORT_KEYS[kind]);
+  const officialCovers = official.length > 0 && official.length >= net.length && official[0]!.timestamp <= (net[0]?.timestamp ?? Infinity);
+  return { countries, netMWh, exportsMWh, importsMWh, peakImport, peakExport, officialNetMWh: officialCovers ? sum(official) : null, hasData: net.length > 0 };
 }
 
 export function registerCrossBorderFlows(server: McpServer, client: SmardClient): void {
@@ -117,14 +110,14 @@ export function registerCrossBorderFlows(server: McpServer, client: SmardClient)
         const resolution = chooseResolution(range.from, range.to);
         const data = await fetchAligned(client, flowKeys(region, kind), region, range.from, range.to, resolution);
         if (data.dataUntil === null) {
-          throw new InputError(noDataMessage(await newestDataPoint(client, NET_EXPORT_KEY[kind], region, resolution), resolution));
+          throw new InputError(await noDataText(client, countryKeys(region, kind)[0]!, region, resolution, range));
         }
         const s = summarizeFlows(data, region, kind);
         const notes = [...data.notes, KIND_NOTE[kind]];
         if (region !== "DE") notes.push(TSO_NOTE);
-        // The net series should equal exports + imports; say so if SMARD's figures disagree noticeably.
-        const gap = Math.abs(s.netMWh - (s.exportsMWh - s.importsMWh));
-        if (s.hasNet && gap > Math.max(1000, 0.02 * (s.exportsMWh + s.importsMWh))) {
+        // SMARD's net series should equal the sum of the country series; say so if they disagree noticeably.
+        const gap = s.officialNetMWh === null ? 0 : Math.abs(s.officialNetMWh - s.netMWh);
+        if (gap > Math.max(1000, 0.02 * (s.exportsMWh + s.importsMWh))) {
           notes.push(`SMARD's net series differs from the sum of the country series by ${fmt1(gap / 1000)} GWh.`);
         }
         // MWh per hour = average MW; reported as GW magnitude.
@@ -157,7 +150,7 @@ function flowsText(r: Result): string {
   const dir = (net: number) => (net < 0 ? `net import ${energyText(-net)}` : `net export ${energyText(net)}`);
   const lines = [
     `Cross-border ${r.kind} flows ${r.region}, ${r.from} to ${r.to} (${r.resolution} values, ${fmt1(r.hours)} hours, ${coverageText(r)}):`,
-    `${dir(r.net_export_gwh)[0]!.toUpperCase()}${dir(r.net_export_gwh).slice(1)} (net export ${signed(r.net_export_gwh, " GWh")}); exports ${energyText(r.exports_gwh)}, imports ${energyText(r.imports_gwh)}.`,
+    `${dir(r.net_export_gwh)[0]!.toUpperCase()}${dir(r.net_export_gwh).slice(1)}; exports ${energyText(r.exports_gwh)}, imports ${energyText(r.imports_gwh)}.`,
     ...r.countries.map((c) => `- ${c.name}: export ${fmt1(c.export_gwh)}, import ${fmt1(c.import_gwh)}, ${dir(c.net_export_gwh)}`),
   ];
   if (r.peak_net_import) lines.push(`Largest net import: ${fmt1(r.peak_net_import.gw)} GW at ${r.peak_net_import.time}.`);

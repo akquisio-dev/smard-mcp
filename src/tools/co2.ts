@@ -2,7 +2,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { GENERATION_KEYS, LOAD_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, type AlignedData } from "../analysis.js";
+import { GENERATION_KEYS, LOAD_KEY, chooseResolution, fetchAligned, noDataText, type AlignedData } from "../analysis.js";
 import { CO2_DISCLAIMER, EMISSION_FACTORS, EMISSION_FACTORS_SOURCE, co2Intensity, co2Tonnes } from "../co2.js";
 import type { Region } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
@@ -89,7 +89,7 @@ export function co2Summary(data: AlignedData): Co2Summary | null {
 export async function loadGeneration(client: SmardClient, region: Region, from: number, to: number) {
   const resolution = chooseResolution(from, to);
   const data = await fetchAligned(client, GENERATION_KEYS, region, from, to, resolution);
-  if (data.dataUntil === null) throw new InputError(noDataMessage(await newestDataPoint(client, LOAD_KEY, region, resolution), resolution));
+  if (data.dataUntil === null) throw new InputError(await noDataText(client, LOAD_KEY, region, resolution, { from, to }));
   return data;
 }
 

@@ -2,7 +2,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { DAY, HOURLY_MAX_RANGE_MS, INTERVAL_MS, PRICE_KEY, fetchAligned, mean, median, newestDataPoint, noDataMessage } from "../analysis.js";
+import { DAY, HOURLY_MAX_RANGE_MS, INTERVAL_MS, PRICE_KEY, fetchAligned, mean, median, noDataText } from "../analysis.js";
 import { ATTRIBUTION, findSeries } from "../catalog.js";
 import type { DataPoint, SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
@@ -220,7 +220,7 @@ export async function analyzePrices(
   const data = await fetchAligned(client, [PRICE_KEY], "DE", from, to, resolution, Date.now(), 56);
   const points = data.series[0]?.points ?? [];
   if (points.length === 0) {
-    throw new InputError(noDataMessage(await newestDataPoint(client, PRICE_KEY, "DE", resolution), resolution));
+    throw new InputError(await noDataText(client, PRICE_KEY, "DE", resolution, { from, to }));
   }
   const notes = [...data.notes];
   if (resolution === "quarterhour" && from < QUARTER_HOUR_AUCTION_START) {

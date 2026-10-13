@@ -2,7 +2,8 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { GENERATION_KEYS, LOAD_KEY, NET_EXPORT_KEY, chooseResolution, fetchAligned, newestDataPoint, noDataMessage, sum, type AlignedData } from "../analysis.js";
+import { GENERATION_KEYS, INTERVAL_MS, LOAD_KEY, NET_EXPORT_KEY, chooseResolution, fetchAligned, noDataText, sum, type AlignedData } from "../analysis.js";
+import { countryKeys, countryNetPoints } from "../flows-data.js";
 import { ATTRIBUTION, GENERATION_SERIES, type Region } from "../catalog.js";
 import { co2Intensity } from "../co2.js";
 import type { SmardClient } from "../smard.js";
@@ -138,13 +139,29 @@ export async function loadMix(client: SmardClient, region: Region, from: number,
   const resolution = chooseResolution(from, to);
   const data = await fetchAligned(client, [...GENERATION_KEYS, LOAD_KEY, NET_EXPORT_KEY], region, from, to, resolution, now);
   if (data.dataUntil === null) {
-    const newest = await newestDataPoint(client, LOAD_KEY, region, resolution);
-    throw new InputError(label + noDataMessage(newest, resolution));
+    throw new InputError(label + (await noDataText(client, LOAD_KEY, region, resolution, { from, to }, now)));
   }
+  await completeNetExport(client, data, region);
   if (region !== "DE" && data.series.some((s) => s.info.key === NET_EXPORT_KEY && s.points.length > 0)) {
     data.notes.push("The net export of a TSO zone counts only its borders to other countries, not exchanges with the other German zones.");
   }
   return { data, mix: computeMix(data) };
+}
+
+/**
+ * SMARD's physical net series starts on 24 September 2020. If it is missing
+ * or starts inside the range, the net export is summed from the per-country
+ * series instead (only then, to keep the usual call light).
+ */
+async function completeNetExport(client: SmardClient, data: AlignedData, region: Region): Promise<void> {
+  const net = data.series.find((s) => s.info.key === NET_EXPORT_KEY);
+  if (!net || data.dataUntil === null) return;
+  const step = INTERVAL_MS[data.resolution];
+  if (net.points.length > 0 && net.points[0]!.timestamp < data.from + step) return;
+  const countries = await fetchAligned(client, countryKeys(region, "physical"), region, data.from, data.to, data.resolution);
+  const until = data.dataUntil;
+  net.points = countryNetPoints(countries, region, "physical").filter((p) => p.timestamp <= until);
+  if (net.points.length > 0) data.notes.push("The net export is computed from the per-country series (SMARD's net series starts in September 2020).");
 }
 
 /** "complete" or "incomplete, data until ..." for text summaries. */

@@ -8,16 +8,17 @@ const OCT12 = Date.parse("2026-10-11T22:00:00Z");
 const hourOfDay = (t: number) => ((Math.floor((t - OCT12) / HOUR) % 24) + 24) % 24;
 
 /**
- * DE physical: France exports 100 / imports -300 per hour, Poland 400 / 0;
- * all other borders have no series (404). Net = exports + imports, except
- * at 18:00 a net import of 2 000 and at 13:00 a net export of 1 500.
+ * DE physical: France exports 100 / imports -300 per hour (-2 500 at 18:00,
+ * 0 at 13:00), Poland 400 / 0; all other borders have no series (404).
+ * So the net is 200 per hour, -2 000 at 18:00 and +500 at 13:00, and
+ * SMARD's net series agrees with the country series.
  */
+const franceImport = (t: number) => (hourOfDay(t) === 18 ? -2_500 : hourOfDay(t) === 13 ? 0 : -300);
 function backend(overrides: Record<number, FakeSeries> = {}) {
-  const net = (t: number) => (hourOfDay(t) === 18 ? -2_000 : hourOfDay(t) === 13 ? 1_500 : 200);
   const series: Record<number, FakeSeries> = {
-    4963: { value: (t, region) => (region === "DE" ? net(t) : -50) },
+    4963: { value: (t, region) => (region === "DE" ? 500 + franceImport(t) : -50) },
     4737: { value: () => 100 }, // DE FR physical export
-    4881: { value: () => -300 }, // DE FR physical import
+    4881: { value: franceImport }, // DE FR physical import
     4741: { value: () => 400 }, // DE PL physical export
     4885: { value: () => 0 }, // DE PL physical import
     4753: { value: () => 70 }, // 50Hertz PL physical export
@@ -71,17 +72,18 @@ describe("get_cross_border_flows", () => {
     expect(data.kind).toBe("physical");
     expect(data.hours).toBe(24);
     expect(data.exports_gwh).toBe(12); // (100 + 400) x 24 MWh
-    expect(data.imports_gwh).toBe(7.2); // 300 x 24
-    expect(data.net_export_gwh).toBe((22 * 200 - 2_000 + 1_500) / 1000);
+    expect(data.imports_gwh).toBe(9.1); // 22 x 300 + 2 500
+    expect(data.net_export_gwh).toBe((22 * 200 - 2_000 + 500) / 1000);
     expect(data.countries.slice(0, 2)).toEqual([
       { code: "PL", name: "Poland", export_gwh: 9.6, import_gwh: 0, net_export_gwh: 9.6 },
-      { code: "FR", name: "France", export_gwh: 2.4, import_gwh: 7.2, net_export_gwh: -4.8 },
+      { code: "FR", name: "France", export_gwh: 2.4, import_gwh: 9.1, net_export_gwh: -6.7 },
     ]);
     expect(data.countries).toHaveLength(11);
     expect(data.peak_net_import).toEqual({ time: "2026-10-12T18:00:00+02:00", gw: 2 });
-    expect(data.peak_net_export).toEqual({ time: "2026-10-12T13:00:00+02:00", gw: 1.5 });
+    expect(data.peak_net_export).toEqual({ time: "2026-10-12T13:00:00+02:00", gw: 0.5 });
     expect(text).toMatch(/Largest net import: 2\.0 GW at 2026-10-12T18:00/);
-    expect(text).toMatch(/- France: export 2\.4, import 7\.2, net import 4\.8 GWh/);
+    expect(text).toMatch(/- France: export 2\.4, import 9\.1, net import 6\.7 GWh/);
+    expect(data.notes.join(" ")).not.toMatch(/net series differs/);
     expect(data.notes.join(" ")).toMatch(/actually crossed the borders/);
   });
 
@@ -126,5 +128,18 @@ describe("get_cross_border_flows", () => {
     const { res, text } = await flows({ from: "2026-10-20" });
     expect(res.isError).toBe(true);
     expect(text).toMatch(/No data for this period/);
+  });
+});
+
+describe("get_cross_border_flows before SMARD's net series exists", () => {
+  it("computes net and peaks from the country series", async () => {
+    // Net series 4963 starts later than the country series (as on SMARD in September 2020).
+    const smard = backend({ 4963: { value: (t) => (t >= Date.parse("2026-10-13T00:00:00Z") ? 200 : null) } });
+    const { data, text } = await flows({ from: "2026-10-12" }, smard);
+    expect(data.net_export_gwh).toBe(2.9); // 22 x 200 - 2 000 + 500, from the country series
+    expect(data.peak_net_export).toEqual({ time: "2026-10-12T13:00:00+02:00", gw: 0.5 });
+    expect(data.peak_net_import).toEqual({ time: "2026-10-12T18:00:00+02:00", gw: 2 });
+    expect(text).toMatch(/^Cross-border physical flows DE[^\n]*\nNet export 2\.9 GWh; exports 12\.0 GWh, imports 9\.1 GWh\./);
+    expect(data.notes.join(" ")).not.toMatch(/net series differs/);
   });
 });

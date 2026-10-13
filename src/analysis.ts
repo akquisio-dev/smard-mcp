@@ -191,6 +191,39 @@ export async function newestDataPoint(
   return null;
 }
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * Message for an analysis over a period without any data: for the past it
+ * names when SMARD's data for the series begins (or that SMARD has a gap),
+ * for the future it points to forecasts and day-ahead prices.
+ */
+export async function noDataText(
+  client: SmardClient,
+  key: string,
+  region: Region,
+  resolution: AnalysisResolution,
+  range: { from: number; to: number },
+  now = Date.now(),
+): Promise<string> {
+  const info = findSeries(key);
+  if (info && range.to <= now) {
+    try {
+      const first = (await client.getIndex(info.filter, region, resolution))[0];
+      if (first !== undefined) {
+        if (range.to <= first) {
+          const d = formatBerlin(first);
+          return `SMARD has no data for this period; its data for this series starts in ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}.`;
+        }
+        return "SMARD has no data for this period (a gap in SMARD's data).";
+      }
+    } catch (err) {
+      if (!(err instanceof SmardError)) throw err;
+    }
+  }
+  return noDataMessage(await newestDataPoint(client, key, region, resolution, now), resolution);
+}
+
 /** Message for an analysis over a period without any data. */
 export function noDataMessage(newest: number | null, resolution: AnalysisResolution): string {
   const until = newest === null ? "unknown" : formatBerlin(newest + INTERVAL_MS[resolution]);

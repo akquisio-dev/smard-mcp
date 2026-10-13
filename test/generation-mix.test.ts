@@ -228,3 +228,36 @@ describe("get_generation_mix with measured cross-border flows", () => {
     expect(data.notes.join(" ")).toMatch(/only its borders to other countries/);
   });
 });
+
+describe("get_generation_mix net export without SMARD's net series", () => {
+  it("falls back to the country series and says so", async () => {
+    const smard = backend("2026-10-13T08:00:00Z", {
+      4963: { value: () => null },
+      4737: { value: () => 100 }, // France export
+      4881: { value: () => -400 }, // France import
+    });
+    const { data } = await mix(smard.fetch, { from: "2026-10-12" });
+    expect((data as unknown as { net_export_gwh: number }).net_export_gwh).toBe(-7.2);
+    expect(data.notes.join(" ")).toMatch(/computed from the per-country series/);
+  });
+
+  it("does not report a partial net export when the net series starts inside the range", async () => {
+    const smard = backend("2026-10-13T08:00:00Z", {
+      4963: { value: (t) => (t >= Date.parse("2026-10-12T10:00:00Z") ? -300 : null) },
+      4737: { value: () => 100 },
+      4881: { value: () => -400 },
+    });
+    const { data } = await mix(smard.fetch, { from: "2026-10-12" });
+    expect((data as unknown as { net_export_gwh: number }).net_export_gwh).toBe(-7.2);
+  });
+});
+
+describe("message for periods before SMARD's data", () => {
+  it("names the start of the data instead of suggesting forecasts", async () => {
+    const client = await connect(backend("2026-10-13T08:00:00Z").fetch);
+    const res = await client.callTool({ name: "get_generation_mix", arguments: { from: "2020-01-01" } });
+    expect(res.isError).toBe(true);
+    expect(textOf(res)).toMatch(/SMARD has no data for this period; its data for this series starts in (September|October) 2025/);
+    expect(textOf(res)).not.toMatch(/forecast/);
+  });
+});
