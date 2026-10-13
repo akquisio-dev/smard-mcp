@@ -109,3 +109,45 @@ describe("SmardClient request handling", () => {
     await expect(client.getRange(4169, "DE", "hour", B0, B1 + HOUR, { maxBlocks: 2 })).resolves.toHaveLength(4);
   });
 });
+
+describe("SmardClient resilience", () => {
+  const index = { timestamps: [B0] };
+
+  it("retries transient failures", async () => {
+    let calls = 0;
+    const fetch = vi.fn(async () => {
+      calls++;
+      return calls < 3 ? new Response("busy", { status: 503 }) : new Response(JSON.stringify(index));
+    });
+    const client = new SmardClient({ fetch, retryDelaysMs: [0, 0] });
+    await expect(client.getIndex(4169, "DE", "hour")).resolves.toEqual([B0]);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry missing data", async () => {
+    const fetch = vi.fn(async () => new Response("", { status: 404 }));
+    const client = new SmardClient({ fetch, retryDelaysMs: [0, 0] });
+    await expect(client.getIndex(4169, "DE", "hour")).rejects.toThrow(/no data/);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves expired cache entries with a warning when SMARD is down", async () => {
+    const { runWithContext } = await import("../src/context.js");
+    vi.useFakeTimers();
+    try {
+      let up = true;
+      const fetch = vi.fn(async () => (up ? new Response(JSON.stringify(index)) : new Response("down", { status: 502 })));
+      const client = new SmardClient({ fetch, retryDelaysMs: [], cacheTtlMs: 1_000, staleMaxMs: 60_000 });
+      await client.getIndex(4169, "DE", "hour");
+      up = false;
+      vi.advanceTimersByTime(5_000);
+      const { value, warnings } = await runWithContext(() => client.getIndex(4169, "DE", "hour"));
+      expect(value).toEqual([B0]);
+      expect(warnings.join(" ")).toMatch(/SMARD did not answer .*from the server's cache/);
+      vi.advanceTimersByTime(120_000);
+      await expect(client.getIndex(4169, "DE", "hour")).rejects.toThrow(/HTTP 502/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

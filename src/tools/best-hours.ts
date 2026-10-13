@@ -6,7 +6,7 @@ import { HOUR, mean } from "../analysis.js";
 import { ATTRIBUTION, findSeries, type Region } from "../catalog.js";
 import { SmardError, type SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult, warningsField } from "./common.js";
 import { MIX_REGIONS } from "./generation-mix.js";
 
 const WHOLESALE_NOTE =
@@ -201,6 +201,7 @@ const windowSchema = z.object({
 });
 
 const outputShape = {
+  ...warningsField,
   date: z.string(),
   region: z.string().describe("Region of the green share"),
   price_zone: z.literal("DE-LU").describe("Prices always refer to the DE-LU bidding zone"),

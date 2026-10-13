@@ -7,7 +7,7 @@ import { BORDERS, type Border } from "../borders.js";
 import { borderSeriesKey, type Region } from "../catalog.js";
 import type { DataPoint, SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
 import { MIX_REGIONS, coverageText, energyText, metaOf, metaShape, signed } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
@@ -38,6 +38,7 @@ const countrySchema = z.object({
 const peakSchema = z.object({ time: z.string(), gw: z.number() });
 
 const outputShape = {
+  ...warningsField,
   ...metaShape,
   kind: z.enum(FLOW_KINDS),
   hours: z.number(),

@@ -6,7 +6,7 @@ import { INTERVAL_MS, PRICE_KEY, mean, type AlignedData } from "../analysis.js";
 import { ATTRIBUTION, findSeries } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin } from "../time.js";
-import { READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult } from "./common.js";
+import { READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult, warningsField } from "./common.js";
 import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText, signed, sourceName, type Mix } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
@@ -37,6 +37,7 @@ const sourceDiff = z.object({
 });
 
 const outputShape = {
+  ...warningsField,
   region: z.string(),
   period_a: z.object(periodShape),
   period_b: z.object(periodShape),

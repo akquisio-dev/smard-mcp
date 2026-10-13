@@ -7,6 +7,7 @@
  */
 
 import type { Region, Resolution } from "./catalog.js";
+import { warn } from "./context.js";
 
 export const SMARD_BASE_URL = "https://www.smard.de/app/chart_data";
 
@@ -39,6 +40,10 @@ export interface SmardClientOptions {
   maxBlocksPerQuery?: number;
   /** Upper bound on simultaneous requests to SMARD. */
   maxConcurrentRequests?: number;
+  /** Pauses before the retries of a failed request (network error, timeout, HTTP 5xx or 429). */
+  retryDelaysMs?: readonly number[];
+  /** Expired cache entries stay usable this long if SMARD fails. */
+  staleMaxMs?: number;
 }
 
 export interface RangeOptions {
@@ -48,8 +53,17 @@ export interface RangeOptions {
 
 interface CacheEntry {
   expires: number;
+  fetchedAt: number;
   value: unknown;
 }
+
+/** Errors worth retrying: no answer, timeout, invalid body, server errors, rate limiting. */
+function isTransient(err: unknown): boolean {
+  if (!(err instanceof SmardError)) return false;
+  return err.status === undefined || err.status >= 500 || err.status === 429;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class SmardClient {
   private readonly baseUrl: string;
@@ -60,6 +74,8 @@ export class SmardClient {
   private readonly cacheMaxEntries: number;
   readonly maxBlocksPerQuery: number;
   private readonly maxConcurrent: number;
+  private readonly retryDelaysMs: readonly number[];
+  private readonly staleMaxMs: number;
   private readonly cache = new Map<string, CacheEntry>();
   /** Requests currently on the wire, so parallel callers share one fetch. */
   private readonly inFlight = new Map<string, Promise<unknown>>();
@@ -75,6 +91,8 @@ export class SmardClient {
     this.cacheMaxEntries = options.cacheMaxEntries ?? 2000;
     this.maxBlocksPerQuery = options.maxBlocksPerQuery ?? 8;
     this.maxConcurrent = options.maxConcurrentRequests ?? 5;
+    this.retryDelaysMs = options.retryDelaysMs ?? [300, 1_000];
+    this.staleMaxMs = options.staleMaxMs ?? 7 * 24 * 3_600_000;
   }
 
   /** Start timestamps (ms since epoch) of all available blocks, ascending. */
@@ -136,15 +154,40 @@ export class SmardClient {
     const pending = this.inFlight.get(path);
     if (pending) return pending;
 
-    const request = this.withSlot(() => this.fetchJson(path)).then((value) => {
-      this.remember(path, value, ttlMs);
-      return value;
-    });
+    const request = this.fetchWithRetries(path).then(
+      (value) => {
+        this.remember(path, value, ttlMs);
+        return value;
+      },
+      (err: unknown) => {
+        // SMARD failed: fall back to an expired copy if there is a recent enough one.
+        if (hit && isTransient(err) && Date.now() - hit.fetchedAt <= this.staleMaxMs) {
+          warn(
+            `SMARD did not answer (${(err as Error).message}); some values come from the server's cache, the oldest fetched at ${new Date(hit.fetchedAt).toISOString()}.`,
+          );
+          return hit.value;
+        }
+        throw err;
+      },
+    );
     this.inFlight.set(path, request);
     try {
       return await request;
     } finally {
       this.inFlight.delete(path);
+    }
+  }
+
+  /** Fetches with retries; the pauses between attempts do not hold a request slot. */
+  private async fetchWithRetries(path: string): Promise<unknown> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.withSlot(() => this.fetchJson(path));
+      } catch (err) {
+        const delay = this.retryDelaysMs[attempt];
+        if (delay === undefined || !isTransient(err)) throw err;
+        await sleep(delay);
+      }
     }
   }
 
@@ -173,7 +216,8 @@ export class SmardClient {
 
   private remember(path: string, value: unknown, ttlMs: number): void {
     this.cache.delete(path);
-    this.cache.set(path, { expires: Date.now() + ttlMs, value });
+    const now = Date.now();
+    this.cache.set(path, { expires: now + ttlMs, fetchedAt: now, value });
     while (this.cache.size > this.cacheMaxEntries) {
       const oldest = this.cache.keys().next().value;
       if (oldest === undefined) break;

@@ -1,6 +1,8 @@
 /** Helpers shared by the tool implementations. */
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
+import { runWithContext } from "../context.js";
 import { SmardError } from "../smard.js";
 
 export function errorResult(message: string): CallToolResult {
@@ -12,15 +14,37 @@ export function toolResult(text: string, structured: Record<string, unknown>): C
   return { content: [{ type: "text", text }], structuredContent: structured };
 }
 
-/** Turns expected failures (bad input, SMARD errors) into tool errors. */
+/**
+ * Runs a tool: expected failures (bad input, SMARD errors) become tool
+ * errors, and warnings raised during the call (e.g. data served from the
+ * cache because SMARD was down) are added to the result.
+ */
 export async function guarded(run: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  let outcome: { value: CallToolResult; warnings: string[] };
   try {
-    return await run();
+    outcome = await runWithContext(run);
   } catch (err) {
     if (err instanceof SmardError || err instanceof InputError) return errorResult(err.message);
     throw err;
   }
+  const { value, warnings } = outcome;
+  if (warnings.length === 0 || value.isError) return value;
+  const text = warnings.map((w) => `Warning: ${w}`).join("\n");
+  const content = value.content.map((c, i) => (i === 0 && c.type === "text" ? { ...c, text: `${c.text}\n${text}` } : c));
+  return {
+    ...value,
+    content,
+    ...(value.structuredContent ? { structuredContent: { ...value.structuredContent, warnings } } : {}),
+  };
 }
+
+/** Optional field every structured result may carry. */
+export const warningsField = {
+  warnings: z
+    .array(z.string())
+    .optional()
+    .describe("Problems during this call, e.g. values served from the cache because SMARD did not answer"),
+};
 
 /** Invalid tool arguments that the schema cannot catch (e.g. ranges). */
 export class InputError extends Error {

@@ -139,3 +139,27 @@ describe("get_series with realistic data", () => {
     }
   });
 });
+
+describe("warnings in tool results", () => {
+  it("adds a warning when cached data was served", async () => {
+    const { createFakeSmard } = await import("./fake-smard.js");
+    const { SmardClient } = await import("../src/smard.js");
+    const { createServer } = await import("../src/server.js");
+    const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+    const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+    const smard = createFakeSmard({ dataEnd: Date.parse("2026-10-13T00:00:00Z"), series: { 4169: { value: () => 80, aggregate: "mean" } } });
+    let down = false;
+    const fetch = (async (url: string | URL | Request) => (down ? new Response("", { status: 503 }) : smard.fetch(url))) as typeof globalThis.fetch;
+    const smardClient = new SmardClient({ fetch, retryDelaysMs: [], cacheTtlMs: 0, archiveCacheTtlMs: 0 });
+    const server = createServer(smardClient);
+    const client = new Client({ name: "t", version: "0" });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(a), client.connect(b)]);
+    await client.callTool({ name: "analyze_prices", arguments: { from: "2026-10-12", context: false } });
+    down = true;
+    const res = await client.callTool({ name: "analyze_prices", arguments: { from: "2026-10-12", context: false } });
+    expect(res.isError).toBeFalsy();
+    expect((res.structuredContent as { warnings?: string[] }).warnings?.[0]).toMatch(/SMARD did not answer/);
+    expect(textOf(res)).toMatch(/Warning: SMARD did not answer/);
+  });
+});
