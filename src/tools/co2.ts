@@ -19,7 +19,7 @@ const intervalPoint = z.object({ time: z.string(), g_per_kwh: z.number() });
 const outputShape = {
   ...warningsField,
   ...metaShape,
-  mean_g_per_kwh: z.number().describe("Generation-weighted mean: total emissions / total generation"),
+  co2_intensity_g_per_kwh: z.number().describe("Generation-weighted mean: total emissions / total generation"),
   total_emissions_t: z.number().describe("Estimated direct CO2 emissions in tonnes"),
   total_generation_gwh: z.number(),
   interval_unit: z.enum(["hour", "day"]),
@@ -136,7 +136,7 @@ export function registerCo2Intensity(server: McpServer, client: SmardClient): vo
         const result: Result = {
           ...metaOf(data, region),
           notes,
-          mean_g_per_kwh: Math.round(summary.meanGPerKwh),
+          co2_intensity_g_per_kwh: Math.round(summary.meanGPerKwh),
           total_emissions_t: Math.round(summary.totalTonnes),
           total_generation_gwh: round1(summary.totalMWh / 1000),
           interval_unit: data.resolution === "day" ? "day" : "hour",
@@ -171,7 +171,7 @@ function co2Text(r: Result): string {
   const list = (ps: { time: string; g_per_kwh: number }[]) => ps.map((p) => `${p.time} (${p.g_per_kwh})`).join(", ");
   const lines = [
     `Estimated CO2 intensity ${r.region}, ${r.from} to ${r.to} (${r.resolution} values, ${coverageText(r)}):`,
-    `Mean ${r.mean_g_per_kwh} g CO2/kWh; total about ${tonnesText(r.total_emissions_t)} CO2 for ${fmt1(r.total_generation_gwh)} GWh generated.`,
+    `Mean ${r.co2_intensity_g_per_kwh} g CO2/kWh; total about ${tonnesText(r.total_emissions_t)} CO2 for ${fmt1(r.total_generation_gwh)} GWh generated.`,
     `Cleanest ${unit} (g/kWh): ${list(r.cleanest)}.`,
     `Dirtiest ${unit} (g/kWh): ${list(r.dirtiest)}.`,
     `By source: ${r.by_source.map((s) => `${s.name} ${tonnesText(s.emissions_t)} (${fmt1(s.share_pct)} %, ${s.g_per_kwh} g/kWh)`).join(", ")}.`,

@@ -38,7 +38,6 @@ interface MixResult {
   resolution: string;
   from: string;
   to: string;
-  data_until: string | null;
   notes: string[];
   total_generation_gwh: number;
   renewable_gwh: number;
@@ -46,7 +45,6 @@ interface MixResult {
   consumption_gwh: number;
   average_load_gw: number;
   generation_to_consumption_pct: number;
-  balance_gwh: number;
   hours: number;
   sources: { key: string; energy_gwh: number; share_pct: number; renewable: boolean }[];
   sources_without_data: string[];
@@ -65,7 +63,6 @@ describe("get_generation_mix", () => {
     expect(data.resolution).toBe("hour");
     expect(data.from).toBe("2026-10-12T00:00:00+02:00");
     expect(data.to).toBe("2026-10-13T00:00:00+02:00");
-    expect(data.data_until).toBe("2026-10-12T23:00:00+02:00");
     expect(data.covered_until).toBe("2026-10-13T00:00:00+02:00");
     expect(data.complete).toBe(true);
     expect(data.notes).toEqual([]);
@@ -86,10 +83,8 @@ describe("get_generation_mix", () => {
       Math.round((12_000 * 992 + 4_000 * 775 + 8_000 * 362 + 1_500 * 707) / TOTAL_PER_HOUR),
     );
     expect(text).toMatch(/Estimated CO2 intensity: \d+ g\/kWh \(generation-based/);
-    expect(data.balance_gwh).toBe((24 * (TOTAL_PER_HOUR - LOAD_PER_HOUR)) / 1000);
     expect(text).toMatch(/Total generation 1202\.4 GWh,/);
     expect(text).toMatch(/24\.0 hours, complete/);
-    expect(text).toMatch(/Generation minus consumption: -117\.6 GWh \(indicator only/);
     expect(text).toMatch(/No generation in the period: nuclear \(0 GWh\)/);
     expect(text).toMatch(/Source: Bundesnetzagentur \| SMARD\.de/);
   });
@@ -124,7 +119,6 @@ describe("get_generation_mix", () => {
         410: { value: (t) => (t < Date.parse("2026-10-13T08:00:00Z") ? LOAD_PER_HOUR : null) },
       });
       const { data } = await mix(smard.fetch, { from: "2026-10-13" });
-      expect(data.data_until).toBe("2026-10-13T09:00:00+02:00");
       expect(data.covered_until).toBe("2026-10-13T10:00:00+02:00");
       expect(data.complete).toBe(false);
       expect(data.total_generation_gwh).toBe((10 * TOTAL_PER_HOUR) / 1000);
@@ -150,7 +144,7 @@ describe("get_generation_mix", () => {
     const { data } = await mix(smard.fetch, { from: "2026-10-12" });
     expect(data.sources.find((s) => s.key === "generation_solar")?.energy_gwh).toBe(90);
     expect(data.sources.find((s) => s.key === "generation_hydro")?.energy_gwh).toBe(22);
-    expect(data.data_until).toBe("2026-10-12T23:00:00+02:00");
+    expect(data.covered_until).toBe("2026-10-13T00:00:00+02:00");
   });
 
   it("handles series SMARD does not offer for a region", async () => {
@@ -187,7 +181,7 @@ describe("get_generation_mix with a series that ends inside the range", () => {
     const smard = backend("2026-10-13T08:00:00Z", { 1224: { value: (t) => (t < end ? 3_000 : null) } });
     const { data } = await mix(smard.fetch, { from: "2025-12-01", to: "2025-12-31" });
     expect(data.resolution).toBe("hour");
-    expect(data.data_until).toBe("2025-12-31T23:00:00+01:00");
+    expect(data.covered_until).toBe("2026-01-01T00:00:00+01:00");
     expect(data.sources.find((s) => s.key === "generation_nuclear")?.energy_gwh).toBe(14 * 24 * 3);
     expect(data.total_generation_gwh).toBe((31 * 24 * TOTAL_PER_HOUR + 14 * 24 * 3_000) / 1000);
     expect(data.notes.join(" ")).toMatch(/generation_nuclear has no data after 2025-12-14T23:00:00\+01:00/);
@@ -199,7 +193,7 @@ describe("get_generation_mix with a series that ends inside the range", () => {
     const smard = backend("2026-10-13T08:00:00Z", { 1224: { value: (t) => (t < end ? 3_000 : null) } });
     const { data } = await mix(smard.fetch, { from: "2026-01-01", to: "2026-06-30" });
     expect(data.resolution).toBe("day");
-    expect(data.data_until).toBe("2026-06-30T00:00:00+02:00");
+    expect(data.covered_until).toBe("2026-07-01T00:00:00+02:00");
     expect(data.notes.join(" ")).toMatch(/generation_nuclear has no data after/);
   });
 });
@@ -224,7 +218,6 @@ describe("get_generation_mix with measured cross-border flows", () => {
     const { data, text } = await mix(smard.fetch, { from: "2026-10-12" });
     expect((data as unknown as { net_export_gwh: number }).net_export_gwh).toBe(-36);
     expect(text).toMatch(/Cross-border physical flows: net import 36\.0 GWh \(measured/);
-    expect(text).not.toMatch(/Generation minus consumption/);
   });
 
   it("explains for TSO zones that only borders abroad count", async () => {

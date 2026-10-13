@@ -25,6 +25,26 @@ const extremum = pricePoint.extend({
   count: z.number().describe("Number of intervals with exactly this price"),
 });
 
+/** Comparison with the 30 days before; shared with get_market_overview. */
+export const priceContextSchema = z
+  .object({
+    reference_from: z.string(),
+    reference_to: z.string(),
+    reference_mean_eur_mwh: z.number().describe("Mean over all hours of the reference period"),
+    deviation_pct: z.number().nullable().describe("Mean of the period relative to reference_mean_eur_mwh, in %"),
+    hours_compared: z.string().describe('Berlin clock hours the period covers, e.g. "17:00 to 20:00" or "all hours"'),
+    same_hours_mean_eur_mwh: z.number().nullable().describe("Mean over the same clock hours of the reference period"),
+    same_hours_deviation_pct: z
+      .number()
+      .nullable()
+      .describe("Mean of the period relative to same_hours_mean_eur_mwh, in %; the fairer comparison for parts of a day"),
+  })
+  .nullable()
+  .optional()
+  .describe(
+    `Prices of the ${CONTEXT_DAYS} days before the period, overall and at the same clock hours, to judge whether prices were high or low`,
+  );
+
 const outputShape = {
   ...warningsField,
   bidding_zone: z.literal("DE-LU"),
@@ -34,7 +54,6 @@ const outputShape = {
   resolution: z.enum(["hour", "quarterhour"]),
   covered_until: z.string().nullable().describe("End of the last interval included"),
   complete: z.boolean().describe("True if the data covers the whole requested range"),
-  data_until: z.string().nullable().describe("Start of the last interval included (kept for compatibility; prefer covered_until)"),
   count: z.number().describe("Number of intervals with a price"),
   mean_eur_mwh: z.number().nullable(),
   median_eur_mwh: z.number().nullable(),
@@ -47,24 +66,7 @@ const outputShape = {
   cheapest: z.array(pricePoint).optional().describe("Cheapest intervals, cheapest first"),
   most_expensive: z.array(pricePoint).optional().describe("Most expensive intervals, most expensive first"),
   daily_averages: z.array(z.object({ date: z.string(), mean_eur_mwh: z.number() })),
-  context: z
-    .object({
-      reference_from: z.string(),
-      reference_to: z.string(),
-      reference_mean_eur_mwh: z.number().describe("Mean over all hours of the reference period"),
-      deviation_pct: z.number().nullable().describe("Mean of the period relative to reference_mean_eur_mwh, in %"),
-      hours_compared: z.string().describe('Berlin clock hours the period covers, e.g. "17:00 to 20:00" or "all hours"'),
-      same_hours_mean_eur_mwh: z.number().nullable().describe("Mean over the same clock hours of the reference period"),
-      same_hours_deviation_pct: z
-        .number()
-        .nullable()
-        .describe("Mean of the period relative to same_hours_mean_eur_mwh, in %; the fairer comparison for parts of a day"),
-    })
-    .nullable()
-    .optional()
-    .describe(
-      `Prices of the ${CONTEXT_DAYS} days before the period, overall and at the same clock hours, to judge whether prices were high or low`,
-    ),
+  context: priceContextSchema,
   notes: z.array(z.string()),
   source: z.string(),
 };
@@ -256,7 +258,6 @@ export async function analyzePrices(
     resolution,
     covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
     complete: data.complete,
-    data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
     ...stats,
     ...(context ? { context: contextResult } : {}),
     notes,

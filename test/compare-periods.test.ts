@@ -23,7 +23,6 @@ interface Period {
   from: string;
   hours: number;
   average_load_gw: number;
-  balance_gwh: number;
   complete: boolean;
   total_generation_gwh: number;
   renewable_share_pct: number;
@@ -40,8 +39,7 @@ interface Result {
     consumption_gwh: number;
     consumption_pct: number;
     average_load_gw: number;
-    balance_gwh: number;
-    hours: number;
+      hours: number;
     average_price_eur_mwh?: number | null;
     average_price_pct?: number | null;
     sources: { key: string; a_gwh: number; b_gwh: number; delta_gwh: number; delta_share_pp: number }[];
@@ -76,9 +74,9 @@ describe("compare_periods", () => {
     expect(data.differences.sources[0]).toMatchObject({ key: "generation_solar", a_gwh: 120, b_gwh: 240, delta_gwh: 120 });
     expect(data.differences.sources.some((s) => s.key === "generation_nuclear")).toBe(false);
     expect(data.notes).toEqual([]);
-    expect(data.period_a).toMatchObject({ label: "2025-10-12", hours: 24, average_load_gw: 18, balance_gwh: -48, complete: true });
-    expect(data.period_b).toMatchObject({ label: "2026-10-12", hours: 24, average_load_gw: 20, balance_gwh: -24 });
-    expect(data.differences).toMatchObject({ average_load_gw: 2, balance_gwh: 24, hours: 0 });
+    expect(data.period_a).toMatchObject({ label: "2025-10-12", hours: 24, average_load_gw: 18, complete: true });
+    expect(data.period_b).toMatchObject({ label: "2026-10-12", hours: 24, average_load_gw: 20 });
+    expect(data.differences).toMatchObject({ average_load_gw: 2, hours: 0 });
     // A: 10 lignite of 16 -> 992 * 10/16 = 620; B: 8 of 19 -> 992 * 8/19 = 417.7
     expect((data.period_a as unknown as { co2_intensity_g_per_kwh: number }).co2_intensity_g_per_kwh).toBe(620);
     expect((data.differences as unknown as { co2_intensity_g_per_kwh: number }).co2_intensity_g_per_kwh).toBe(Math.round((992 * 8) / 19 - 620));

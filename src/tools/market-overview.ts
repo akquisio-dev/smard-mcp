@@ -10,7 +10,7 @@ import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../t
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
 import { co2Summary } from "./co2.js";
 import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText, signed } from "./generation-mix.js";
-import { analyzePrices, type PriceAnalysis } from "./prices.js";
+import { analyzePrices, priceContextSchema, type PriceAnalysis } from "./prices.js";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -34,8 +34,7 @@ const priceSummary = z.object({
   min: z.object({ time: z.string(), price_eur_mwh: z.number(), count: z.number() }).nullable(),
   max: z.object({ time: z.string(), price_eur_mwh: z.number(), count: z.number() }).nullable(),
   negative_count: z.number(),
-  reference_mean_30d_eur_mwh: z.number().nullable().optional(),
-  deviation_from_30d_pct: z.number().nullable().optional(),
+  context: priceContextSchema,
 });
 
 const outputShape = {
@@ -49,7 +48,7 @@ const outputShape = {
   complete: z.boolean(),
   mix: z.object(mixShape),
   co2: z.object({
-    intensity_g_per_kwh: z.number().nullable(),
+    co2_intensity_g_per_kwh: z.number().nullable(),
     total_emissions_t: z.number().nullable(),
     cleanest_hour: hourPoint.nullable(),
     dirtiest_hour: hourPoint.nullable(),
@@ -86,7 +85,7 @@ function summarizePrices(p: PriceAnalysis): z.infer<typeof priceSummary> {
     max: p.max,
     negative_count: p.negative_count,
     ...(p.context !== undefined
-      ? { reference_mean_30d_eur_mwh: p.context?.reference_mean_eur_mwh ?? null, deviation_from_30d_pct: p.context?.deviation_pct ?? null }
+      ? { context: p.context }
       : {}),
   };
 }
@@ -191,7 +190,7 @@ export function registerMarketOverview(server: McpServer, client: SmardClient): 
           complete: meta.complete,
           mix: mixOut,
           co2: {
-            intensity_g_per_kwh: mix.co2_intensity_g_per_kwh,
+            co2_intensity_g_per_kwh: mix.co2_intensity_g_per_kwh,
             total_emissions_t: co2 ? Math.round(co2.totalTonnes) : null,
             cleanest_hour: hour(byHour[0]),
             dirtiest_hour: hour(byHour[byHour.length - 1]),
@@ -212,15 +211,15 @@ function overviewText(r: Result): string {
   const m = r.mix;
   const lines = [
     `Electricity market ${r.region}, ${r.weekday} ${r.date} (${coverageText(r)}):`,
-    `Renewable share ${m.renewable_share_pct === null ? "n/a" : fmt1(m.renewable_share_pct) + " %"}; generation ${energyText(m.total_generation_gwh)}; consumption ${m.consumption_gwh === null ? "n/a" : energyText(m.consumption_gwh)} (average load ${m.average_load_gw === null ? "n/a" : fmt1(m.average_load_gw) + " GW"}); cross-border ${m.net_export_gwh === null ? (m.balance_gwh === null ? "n/a" : `generation minus consumption ${signed(m.balance_gwh, " GWh")}`) : netFlowText(m.net_export_gwh)}.`,
-    `Estimated CO2 intensity ${r.co2.intensity_g_per_kwh ?? "n/a"} g/kWh (cleanest hour ${r.co2.cleanest_hour ? `${r.co2.cleanest_hour.time.slice(11, 16)} ${r.co2.cleanest_hour.g_per_kwh}` : "n/a"}, dirtiest ${r.co2.dirtiest_hour ? `${r.co2.dirtiest_hour.time.slice(11, 16)} ${r.co2.dirtiest_hour.g_per_kwh}` : "n/a"} g/kWh).`,
+    `Renewable share ${m.renewable_share_pct === null ? "n/a" : fmt1(m.renewable_share_pct) + " %"}; generation ${energyText(m.total_generation_gwh)}; consumption ${m.consumption_gwh === null ? "n/a" : energyText(m.consumption_gwh)} (average load ${m.average_load_gw === null ? "n/a" : fmt1(m.average_load_gw) + " GW"}); cross-border ${m.net_export_gwh === null ? "n/a" : netFlowText(m.net_export_gwh)}.`,
+    `Estimated CO2 intensity ${r.co2.co2_intensity_g_per_kwh ?? "n/a"} g/kWh (cleanest hour ${r.co2.cleanest_hour ? `${r.co2.cleanest_hour.time.slice(11, 16)} ${r.co2.cleanest_hour.g_per_kwh}` : "n/a"}, dirtiest ${r.co2.dirtiest_hour ? `${r.co2.dirtiest_hour.time.slice(11, 16)} ${r.co2.dirtiest_hour.g_per_kwh}` : "n/a"} g/kWh).`,
     `Mix: ${m.sources.map((s) => `${s.name} ${fmt1(s.energy_gwh)} GWh (${fmt1(s.share_pct)} %)`).join(", ")}.`,
   ];
   if (r.prices) {
     const p = r.prices;
-    const dev = p.deviation_from_30d_pct;
+    const dev = p.context?.deviation_pct;
     lines.push(
-      `Day-ahead price DE-LU: mean ${eur(p.mean_eur_mwh)} (${dev === null || dev === undefined ? "no 30-day comparison" : `${dev > 0 ? "+" : ""}${dev.toFixed(1)} % vs. the 30-day mean of ${eur(p.reference_mean_30d_eur_mwh)}`}), min ${p.min ? `${eur(p.min.price_eur_mwh)} at ${p.min.time.slice(11, 16)}` : "n/a"}, max ${p.max ? `${eur(p.max.price_eur_mwh)} at ${p.max.time.slice(11, 16)}` : "n/a"}, ${p.negative_count} hours with negative prices.`,
+      `Day-ahead price DE-LU: mean ${eur(p.mean_eur_mwh)} (${dev === null || dev === undefined ? "no 30-day comparison" : `${dev > 0 ? "+" : ""}${dev.toFixed(1)} % vs. the 30-day mean of ${eur(p.context?.reference_mean_eur_mwh)}`}), min ${p.min ? `${eur(p.min.price_eur_mwh)} at ${p.min.time.slice(11, 16)}` : "n/a"}, max ${p.max ? `${eur(p.max.price_eur_mwh)} at ${p.max.time.slice(11, 16)}` : "n/a"}, ${p.negative_count} hours with negative prices.`,
     );
   }
   const o = r.outlook;

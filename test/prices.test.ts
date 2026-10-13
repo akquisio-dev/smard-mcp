@@ -44,7 +44,6 @@ interface Result {
   all_prices?: P[];
   context?: { reference_mean_eur_mwh: number; deviation_pct: number | null } | null;
   daily_averages: { date: string; mean_eur_mwh: number }[];
-  data_until: string;
   notes: string[];
 }
 
@@ -99,7 +98,6 @@ describe("analyze_prices", () => {
     vi.setSystemTime(new Date("2026-10-13T10:00:00Z"));
     try {
       const { data } = await analyze({ from: "2026-10-13", to: "2026-10-14" }, backend("2026-10-13T22:00:00Z").fetch);
-      expect(data.data_until).toBe("2026-10-13T23:00:00+02:00");
       expect(data.covered_until).toBe("2026-10-14T00:00:00+02:00");
       expect(data.complete).toBe(false);
       expect(data.notes.join(" ")).toMatch(/future/);

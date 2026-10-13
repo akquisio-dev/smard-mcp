@@ -149,7 +149,6 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           to: formatBerlin(toMs),
           covered_until: coveredUntil === null ? null : formatBerlin(coveredUntil),
           complete: coveredUntil !== null && coveredUntil >= toMs,
-          data_until: last ? formatBerlin(last.timestamp) : null,
           summary,
           ...(notes.length > 0 ? { notes } : {}),
           ...(include_points ? { points: points.map((p) => ({ time: formatBerlin(p.timestamp), value: p.value })) } : {}),

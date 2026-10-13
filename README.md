@@ -102,8 +102,7 @@ Cross-border flows come from SMARD in two kinds: physical flows (measured, about
 real time) and commercial exchanges (scheduled trades, available until the end of the current day).
 Exports are positive, imports negative. For a TSO zone only its borders to other countries count,
 so the four zones add up to Germany. `get_generation_mix`, `compare_periods` and
-`get_market_overview` report the measured physical net export as `net_export_gwh`;
-`balance_gwh` (generation minus consumption) remains as a rough indicator.
+`get_market_overview` report the measured physical net export as `net_export_gwh`.
 
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to
 8 weeks (15-minute day-ahead prices exist since 1 October 2025). Its context comparison with the

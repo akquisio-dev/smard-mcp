@@ -204,7 +204,7 @@ const outputShape = {
   ...warningsField,
   date: z.string(),
   region: z.string().describe("Region of the green share"),
-  price_zone: z.literal("DE-LU").describe("Prices always refer to the DE-LU bidding zone"),
+  bidding_zone: z.literal("DE-LU").describe("Prices always refer to the DE-LU bidding zone"),
   resolution: z.enum(["hour", "quarterhour"]),
   from: z.string().describe("First interval considered"),
   to: z.string().describe("End of the intervals considered (exclusive)"),
@@ -213,7 +213,7 @@ const outputShape = {
   recommended: windowSchema.nullable().describe("Best window for the chosen criterion"),
   best: z.object({ price: windowSchema.nullable(), green: windowSchema.nullable(), balanced: windowSchema.nullable() }),
   worst: windowSchema.nullable().describe("Worst window for the chosen criterion, for comparison"),
-  hours: z
+  intervals: z
     .array(z.object({ time: z.string(), price_eur_mwh: z.number().nullable(), green_share_pct: z.number().nullable() }))
     .describe("Table per interval (hour or quarter-hour)"),
   missing: z.array(z.string()).describe("Data that is not available (yet)"),
@@ -325,7 +325,7 @@ export function registerBestHours(server: McpServer, client: SmardClient): void 
         const result: Result = {
           date: formatBerlin(dayStart).slice(0, 10),
           region,
-          price_zone: "DE-LU",
+          bidding_zone: "DE-LU",
           resolution,
           from: formatBerlin(from),
           to: formatBerlin(dayEnd),
@@ -334,7 +334,7 @@ export function registerBestHours(server: McpServer, client: SmardClient): void 
           recommended: windowOut(ranked[chosen]?.best),
           best: { price: windowOut(ranked.price?.best), green: windowOut(ranked.green?.best), balanced: windowOut(ranked.balanced?.best) },
           worst: windowOut(ranked[chosen]?.worst),
-          hours: rows.map((r) => ({
+          intervals: rows.map((r) => ({
             time: formatBerlin(r.timestamp),
             price_eur_mwh: r.price === null ? null : round2(r.price) + 0,
             green_share_pct: r.green === null ? null : round1(r.green),

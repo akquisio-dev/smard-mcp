@@ -20,7 +20,6 @@ const periodShape = {
   resolution: z.enum(["quarterhour", "hour", "day"]),
   covered_until: z.string().nullable(),
   complete: z.boolean(),
-  data_until: z.string().nullable(),
   ...mixShape,
   average_price_eur_mwh: z.number().nullable().optional().describe("Mean day-ahead price DE-LU (region DE only)"),
 };
@@ -50,7 +49,6 @@ const outputShape = {
       consumption_pct: z.number().nullable().describe("Relative change of consumption in %"),
       average_load_gw: z.number().nullable(),
       generation_to_consumption_pp: z.number().nullable(),
-      balance_gwh: z.number().nullable(),
       net_export_gwh: z.number().nullable().describe("Change of the measured cross-border net export"),
       hours: z.number(),
       co2_intensity_g_per_kwh: z.number().nullable(),
@@ -162,7 +160,6 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
             resolution: meta.resolution,
             covered_until: meta.covered_until,
             complete: meta.complete,
-            data_until: meta.data_until,
             ...mix,
             ...(withPrice ? { average_price_eur_mwh: price === null ? null : round2(price) } : {}),
           };
@@ -191,10 +188,6 @@ export function registerComparePeriods(server: McpServer, client: SmardClient): 
                 ? null
                 : diff(ma.raw.loadMWh / 1000 / ma.hours, mb.raw.loadMWh / 1000 / mb.hours),
             generation_to_consumption_pp: diff(share(ma.raw.totalMWh, ma.raw.loadMWh), share(mb.raw.totalMWh, mb.raw.loadMWh)),
-            balance_gwh:
-              ma.raw.loadMWh === null || mb.raw.loadMWh === null
-                ? null
-                : diff((ma.raw.totalMWh - ma.raw.loadMWh) / 1000, (mb.raw.totalMWh - mb.raw.loadMWh) / 1000),
             net_export_gwh:
               ma.raw.netExportMWh === null || mb.raw.netExportMWh === null ? null : diff(ma.raw.netExportMWh / 1000, mb.raw.netExportMWh / 1000),
             hours: round1(mb.hours - ma.hours) + 0,

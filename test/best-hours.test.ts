@@ -48,14 +48,14 @@ interface W {
 interface Result {
   date: string;
   region: string;
-  price_zone: string;
+  bidding_zone: string;
   resolution: string;
   from: string;
   optimize: string;
   recommended: W | null;
   best: { price: W | null; green: W | null; balanced: W | null };
   worst: W | null;
-  hours: { time: string; price_eur_mwh: number | null; green_share_pct: number | null }[];
+  intervals: { time: string; price_eur_mwh: number | null; green_share_pct: number | null }[];
   missing: string[];
   notes: string[];
 }
@@ -76,7 +76,7 @@ describe("find_best_hours", () => {
   it("finds the best windows per criterion for a given day", async () => {
     const { res, data, text, calls } = await best({ date: "2026-10-14", duration_hours: 3 });
     expect(res.isError, text).toBeFalsy();
-    expect(data.hours).toHaveLength(24);
+    expect(data.intervals).toHaveLength(24);
     expect(data.best.price).toEqual({
       start: "2026-10-14T12:00:00+02:00",
       end: "2026-10-14T15:00:00+02:00",
@@ -107,7 +107,7 @@ describe("find_best_hours", () => {
     const { data } = await best({ duration_hours: 2 }, backend({ pricesUntil: OCT14 }), "2026-10-13T07:20:00Z");
     expect(data.date).toBe("2026-10-13");
     expect(data.from).toBe("2026-10-13T10:00:00+02:00");
-    expect(data.hours).toHaveLength(14);
+    expect(data.intervals).toHaveLength(14);
     expect(data.notes.join(" ")).toMatch(/not published yet/);
     expect(data.best.price?.start).toBe("2026-10-13T12:00:00+02:00");
   });
@@ -150,8 +150,8 @@ describe("find_best_hours", () => {
       },
     });
     const { data } = await best({ date: "2025-10-26", optimize: "green" }, smard);
-    expect(data.hours).toHaveLength(25);
-    expect(data.hours.filter((h) => h.time.slice(11, 13) === "02")).toHaveLength(2);
+    expect(data.intervals).toHaveLength(25);
+    expect(data.intervals.filter((h) => h.time.slice(11, 13) === "02")).toHaveLength(2);
     expect(data.recommended).toMatchObject({ start: "2025-10-26T02:00:00+02:00", end: "2025-10-26T04:00:00+01:00", average_green_share_pct: 80 });
   });
 
@@ -207,7 +207,7 @@ describe("find_best_hours criteria", () => {
     });
     const { data, text } = await best({ date: "2026-10-14", duration_hours: 1, optimize: "price", resolution: "quarterhour" }, smard);
     expect(data.resolution).toBe("quarterhour");
-    expect(data.hours).toHaveLength(96);
+    expect(data.intervals).toHaveLength(96);
     expect(data.recommended).toMatchObject({ start: "2026-10-14T13:15:00+02:00", end: "2026-10-14T14:15:00+02:00", average_price_eur_mwh: 5 });
     expect(text).toMatch(/15-minute steps/);
     expect(text).toMatch(/Hour \(mean of the quarter-hours\)/);
@@ -231,7 +231,7 @@ describe("find_best_hours criteria", () => {
     });
     const { data, text, calls } = await best({ date: "2026-10-14", region: "TenneT" }, smard);
     expect(data.region).toBe("TenneT");
-    expect(data.price_zone).toBe("DE-LU");
+    expect(data.bidding_zone).toBe("DE-LU");
     expect(data.recommended?.average_green_share_pct).toBe(100);
     expect(calls.some((c) => c.startsWith("5097/TenneT/"))).toBe(true);
     expect(calls.some((c) => c.startsWith("4169/DE/"))).toBe(true);
@@ -272,9 +272,9 @@ describe("find_best_hours intraday forecasts for today", () => {
   it("prefers the intraday forecast for today and falls back to day-ahead per interval", async () => {
     const { data, calls } = await best({ date: "2026-10-13", optimize: "green", duration_hours: 3 }, smard(true), "2026-10-13T10:00:00Z");
     // Intraday: 21:00 = 90 %; day-ahead fills 22:00 and 23:00 (20 %), 18-20 are 20 % intraday.
-    expect(data.hours.find((r) => r.time.startsWith("2026-10-13T21:00"))?.green_share_pct).toBe(90);
-    expect(data.hours.find((r) => r.time.startsWith("2026-10-13T19:00"))?.green_share_pct).toBe(20);
-    expect(data.hours.find((r) => r.time.startsWith("2026-10-13T22:00"))?.green_share_pct).toBe(20);
+    expect(data.intervals.find((r) => r.time.startsWith("2026-10-13T21:00"))?.green_share_pct).toBe(90);
+    expect(data.intervals.find((r) => r.time.startsWith("2026-10-13T19:00"))?.green_share_pct).toBe(20);
+    expect(data.intervals.find((r) => r.time.startsWith("2026-10-13T22:00"))?.green_share_pct).toBe(20);
     expect(calls.some((c) => c.startsWith("5129/DE/"))).toBe(true);
     expect(data.notes.join(" ")).toMatch(/intraday forecast \(updated during the day\)/);
   });

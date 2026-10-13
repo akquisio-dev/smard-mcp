@@ -31,10 +31,6 @@ export const mixShape = {
     .number()
     .nullable()
     .describe("Generation in % of consumption; above 100 hints at net exports, below at net imports"),
-  balance_gwh: z
-    .number()
-    .nullable()
-    .describe("Generation minus consumption; an indicator only, not the physical exchange (pumped storage, grid losses). Prefer net_export_gwh"),
   net_export_gwh: z
     .number()
     .nullable()
@@ -55,7 +51,6 @@ export const metaShape = {
   resolution: z.enum(["quarterhour", "hour", "day"]),
   covered_until: z.string().nullable().describe("End of the last interval included"),
   complete: z.boolean().describe("True if the data covers the whole requested range"),
-  data_until: z.string().nullable().describe("Start of the last interval included (kept for compatibility; prefer covered_until)"),
   notes: z.array(z.string()),
   source: z.string(),
 };
@@ -67,7 +62,6 @@ export interface Mix {
   consumption_gwh: number | null;
   average_load_gw: number | null;
   generation_to_consumption_pct: number | null;
-  balance_gwh: number | null;
   net_export_gwh: number | null;
   hours: number;
   co2_intensity_g_per_kwh: number | null;
@@ -127,7 +121,6 @@ export function computeMix(data: AlignedData): Mix {
     consumption_gwh: loadMWh === null ? null : round1(loadMWh / 1000),
     average_load_gw: loadMWh === null || hours === 0 ? null : round1(loadMWh / 1000 / hours),
     generation_to_consumption_pct: loadMWh ? round1((100 * totalMWh) / loadMWh) : null,
-    balance_gwh: loadMWh === null ? null : round1((totalMWh - loadMWh) / 1000) + 0,
     net_export_gwh: netExportMWh === null ? null : round1(netExportMWh / 1000) + 0,
     hours: round1(hours),
     co2_intensity_g_per_kwh: co2 === null ? null : Math.round(co2),
@@ -167,7 +160,6 @@ export function metaOf(data: AlignedData, region: string) {
     resolution: data.resolution,
     covered_until: data.coveredUntil === null ? null : formatBerlin(data.coveredUntil),
     complete: data.complete,
-    data_until: data.dataUntil === null ? null : formatBerlin(data.dataUntil),
     notes: data.notes,
     source: ATTRIBUTION,
   };
@@ -237,10 +229,6 @@ function mixText(r: ReturnType<typeof metaOf> & Omit<Mix, "raw">): string {
   }
   if (r.net_export_gwh !== null) {
     lines.push(`Cross-border physical flows: ${netFlowText(r.net_export_gwh)} (measured; see get_cross_border_flows for countries).`);
-  } else if (r.balance_gwh !== null) {
-    lines.push(
-      `Generation minus consumption: ${signed(r.balance_gwh, " GWh")} (indicator only, not the exact physical export: pumped storage and grid losses are included).`,
-    );
   }
   for (const s of r.sources) lines.push(`- ${s.name}: ${energyText(s.energy_gwh)} (${fmt1(s.share_pct)} %)${s.renewable ? ", renewable" : ""}`);
   if (r.sources_without_data.length > 0) {

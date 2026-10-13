@@ -42,7 +42,6 @@ describe("MCP server", () => {
     const data = res.structuredContent as {
       unit: string;
       bidding_zone: string;
-      data_until: string;
       covered_until: string;
       complete: boolean;
       points: { time: string; value: number }[];
@@ -56,7 +55,6 @@ describe("MCP server", () => {
     ]);
     expect(data.summary).toMatchObject({ count: 2, mean: 75.25 });
     expect(data.summary.sum).toBeUndefined();
-    expect(data.data_until).toBe("2026-09-28T01:00:00+02:00");
     expect(data.covered_until).toBe("2026-09-28T02:00:00+02:00");
     expect(data.complete).toBe(false);
   });
@@ -116,8 +114,8 @@ describe("get_series with realistic data", () => {
         name: "get_series",
         arguments: { series: "generation_solar", from: "2026-10-13", to: "2026-10-13" },
       });
-      const data = res.structuredContent as { data_until: string; notes?: string[] };
-      expect(data.data_until).toBe("2026-10-13T11:00:00+02:00");
+      const data = res.structuredContent as { covered_until: string; notes?: string[] };
+      expect(data.covered_until).toBe("2026-10-13T12:00:00+02:00");
       expect(data.notes?.join(" ")).toMatch(/incomplete/);
     } finally {
       vi.useRealTimers();

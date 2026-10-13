@@ -22,7 +22,7 @@ function backend(dataEnd = "2026-10-13T08:00:00Z", extra: Record<number, FakeSer
 }
 
 interface Result {
-  mean_g_per_kwh: number;
+  co2_intensity_g_per_kwh: number;
   total_emissions_t: number;
   total_generation_gwh: number;
   interval_unit: string;
@@ -50,7 +50,7 @@ describe("get_co2_intensity", () => {
     // 24 h lignite = 24 000 MWh x 992 g/kWh = 23 808 t; generation 24 000 + 6 x 3 000 = 42 000 MWh
     expect(data.total_emissions_t).toBe(23_808);
     expect(data.total_generation_gwh).toBe(42);
-    expect(data.mean_g_per_kwh).toBe(Math.round(23_808_000 / 42_000));
+    expect(data.co2_intensity_g_per_kwh).toBe(Math.round(23_808_000 / 42_000));
     expect(data.cleanest).toEqual([
       { time: "2026-10-12T10:00:00+02:00", g_per_kwh: 248 },
       { time: "2026-10-12T11:00:00+02:00", g_per_kwh: 248 },

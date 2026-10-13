@@ -29,8 +29,8 @@ interface Result {
   region: string;
   complete: boolean;
   mix: { renewable_share_pct: number; hours: number; co2_intensity_g_per_kwh: number };
-  co2: { intensity_g_per_kwh: number; total_emissions_t: number; cleanest_hour: unknown };
-  prices: { mean_eur_mwh: number; negative_count: number; reference_mean_30d_eur_mwh: number; deviation_from_30d_pct: number } | null;
+  co2: { co2_intensity_g_per_kwh: number; total_emissions_t: number; cleanest_hour: unknown };
+  prices: { mean_eur_mwh: number; negative_count: number; context: { reference_mean_eur_mwh: number; deviation_pct: number } } | null;
   outlook: {
     date: string;
     forecast: { wind_and_solar_gwh: number; consumption_gwh: number; wind_and_solar_share_pct: number; wind_offshore_gwh: number | null } | null;
@@ -70,10 +70,10 @@ describe("get_market_overview", () => {
     expect(data.weekday).toBe("Tuesday");
     expect(data.complete).toBe(true);
     expect(data.mix.renewable_share_pct).toBe(75);
-    expect(data.co2.intensity_g_per_kwh).toBe(248); // 992 x 1/4
-    expect(data.co2.intensity_g_per_kwh).toBe(data.mix.co2_intensity_g_per_kwh);
+    expect(data.co2.co2_intensity_g_per_kwh).toBe(248); // 992 x 1/4
+    expect(data.co2.co2_intensity_g_per_kwh).toBe(data.mix.co2_intensity_g_per_kwh);
     expect(data.co2.total_emissions_t).toBe(24 * 992);
-    expect(data.prices).toMatchObject({ mean_eur_mwh: 80, negative_count: 0, reference_mean_30d_eur_mwh: 80, deviation_from_30d_pct: 0 });
+    expect(data.prices).toMatchObject({ mean_eur_mwh: 80, negative_count: 0, context: { reference_mean_eur_mwh: 80, deviation_pct: 0 } });
     expect(data.outlook.date).toBe("2026-10-14");
     expect(data.outlook.forecast).toMatchObject({ wind_and_solar_gwh: 84, consumption_gwh: 120, wind_and_solar_share_pct: 70, wind_offshore_gwh: 12 });
     expect(data.outlook.prices?.mean_eur_mwh).toBe(80);
