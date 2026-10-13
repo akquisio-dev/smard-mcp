@@ -5,6 +5,16 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
+## [1.0.0] - 2026-10-13
+
+First stable release. From now on, output fields and tool names only change in a backwards
+compatible way until 2.0.
+
+### Added
+
+- Published on npm (`npx -y smard-mcp`) and prepared for the MCP Registry
+  (`io.github.akquisio-dev/smard-mcp`, `server.json` with the npm package and the hosted endpoint).
+
 ## [0.9.0] - 2026-10-13
 
 Bug hunt before 1.0: cross-checked all tools against each other and against SMARD's CSV export,
@@ -117,7 +127,8 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
-[0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/7ead2fe...HEAD
+[1.0.0]: https://github.com/akquisio-dev/smard-mcp/compare/fe4f8dd...v1.0.0
+[0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/7ead2fe...fe4f8dd
 [0.8.0]: https://github.com/akquisio-dev/smard-mcp/compare/443c24d...7ead2fe
 [0.7.0]: https://github.com/akquisio-dev/smard-mcp/compare/5b7f972...443c24d
 [0.6.0]: https://github.com/akquisio-dev/smard-mcp/compare/b28cd06...5b7f972

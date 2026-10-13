@@ -22,26 +22,33 @@ claude mcp add --transport http smard https://energie.akquisio.eu/mcp
 
 ## Run locally
 
-Requires Node.js 22 or newer.
+Requires Node.js 22 or newer. The package is on npm as
+[`smard-mcp`](https://www.npmjs.com/package/smard-mcp) and listed in the
+[MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.akquisio-dev/smard-mcp`.
+
+As a stdio server, e.g. in Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "smard": {
+      "command": "npx",
+      "args": ["-y", "smard-mcp"]
+    }
+  }
+}
+```
+
+In Claude Code: `claude mcp add smard -- npx -y smard-mcp`.
+
+From source:
 
 ```sh
 git clone https://github.com/akquisio-dev/smard-mcp.git
 cd smard-mcp
 npm ci
 npm run build
-```
-
-As a stdio server (e.g. in Claude Desktop's `claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "smard": {
-      "command": "node",
-      "args": ["/path/to/smard-mcp/dist/stdio.js"]
-    }
-  }
-}
+node dist/stdio.js
 ```
 
 As an HTTP server:
