@@ -57,11 +57,13 @@ PORT=8450 npm start   # serves http://127.0.0.1:8450/mcp and /health
 
 ## Example questions
 
+- "How was the German electricity market yesterday?"
+- "When should I charge my electric car tomorrow?" / "When is power greenest today?"
+- "How much CO2 did German power generation emit per kWh last week, and when was it cleanest?"
 - "How much electricity came from solar and lignite in Germany yesterday?"
 - "What was the renewable share in the TenneT zone in March 2026?"
 - "Compare the generation mix of October 2025 and October 2026."
 - "How many hours with negative prices were there in the last 12 months, and when was power cheapest?"
-- "What will electricity cost tomorrow between 17:00 and 20:00?"
 - "Show the wind onshore forecast for tomorrow."
 
 ## Tools
@@ -75,11 +77,14 @@ two decimals, shares in %.
 
 ### Analysis
 
-| Tool                 | Purpose                                                                                                                                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `get_generation_mix` | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption. Regions: DE and the four TSO zones.                     |
-| `compare_periods`    | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                  |
-| `analyze_prices`     | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before. |
+| Tool                  | Purpose                                                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_market_overview` | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                  |
+| `find_best_hours`     | Best contiguous window of a day (1 to 12 hours) by price, green share (wind + solar in % of consumption) or both, the worst window for comparison and an hourly table. Defaults to tomorrow once prices are out.   |
+| `get_co2_intensity`   | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                    |
+| `get_generation_mix`  | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of and minus consumption, CO2 intensity. Regions: DE and the four TSO zones.      |
+| `compare_periods`     | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                  |
+| `analyze_prices`      | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before. |
 
 For periods without any data, for example in the future, the analysis tools return an error that
 names the newest available data; use `get_series` with a `forecast_*` series or `price_de_lu`
@@ -97,6 +102,65 @@ Generation minus consumption is an indicator for net exports, not the exact phys
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to
 8 weeks (15-minute day-ahead prices exist since 1 October 2025). Its context comparison with the
 30 days before can be switched off with `context: false`.
+
+`find_best_hours` uses forecasts (wind + solar generation, consumption) for today and later days
+and actual values for past days. Its prices are wholesale day-ahead prices without taxes, levies
+and grid fees, so for households they matter directly only with a dynamic tariff.
+
+### Prompts
+
+Ready-made report templates in German (the answer switches to English if the user writes
+English). The server fills in dates, weekdays and the exact tool calls.
+
+| Prompt             | Arguments                                                        | Report                                        |
+| ------------------ | ---------------------------------------------------------------- | --------------------------------------------- |
+| `strom_uebersicht` | `datum` (default yesterday), `region`                            | Day overview via `get_market_overview`        |
+| `wochen_bericht`   | `woche` (`2026-W41`, `KW 41 2026` or a date), `region`           | Week report compared with the previous week   |
+| `monatsvergleich`  | `monat` (`2026-09`, `September 2026`), `region`                  | Month compared with the same month a year ago |
+| `region_vergleich` | `von`, `bis`                                                     | The four TSO zones side by side               |
+| `beste_stunden`    | `dauer` (1 to 12 hours), `ziel` (`preis`, `gruen`, `ausgewogen`) | Best time window via `find_best_hours`        |
+
+### CO2 methodology
+
+CO2 intensity = sum over sources of (generation x emission factor) / total generation. The
+factors are **direct CO2 emissions from combustion per kWh of electricity**, derived from
+Umweltbundesamt, [Climate Change 03/2025](https://www.umweltbundesamt.de/system/files/medien/11850/publikationen/03_2025_cc_emissionsbilanz_erneuerbarer_energien_2023.pdf)
+"Emissionsbilanz erneuerbarer Energieträger" (data year 2023): direct CO2 per kWh of primary
+energy from the national emission inventory (table 6) divided by the mean gross efficiency of
+the plants (table 5).
+
+| Source              | g CO2/kWh | Basis                                                                                                                |
+| ------------------- | --------: | -------------------------------------------------------------------------------------------------------------------- |
+| Lignite             |       992 | 394.95 g/kWh primary energy / 39.8 %                                                                                 |
+| Hard coal           |       775 | 338.82 g/kWh / 43.7 %                                                                                                |
+| Natural gas         |       362 | 202.77 g/kWh / 56.0 %                                                                                                |
+| Other conventional  |       707 | **Uncertain.** Mix of oil, blast-furnace and mine gas, waste; oil value (266.47 g/kWh / 37.7 %) as a middle estimate |
+| Renewables, biomass |         0 | No combustion, or biogenic CO2 (counted as climate-neutral)                                                          |
+| Nuclear             |         0 | No combustion                                                                                                        |
+| Pumped storage      |         0 | Stored electricity was generated and counted before (no double count)                                                |
+
+The result is an **estimate**: based on generation in the region, without imports and exports,
+direct emissions only (no upstream chain, no other greenhouse gases).
+
+**Plausibility check.** For Germany this server estimates 282 g/kWh for 2024 (123.4 Mt CO2 for
+437.7 TWh) and 275 g/kWh for 2025 (120.5 Mt for 437.9 TWh). The Umweltbundesamt
+[reports](https://www.umweltbundesamt.de/themen/co2-emissionen-pro-kilowattstunde-strom-2025-nur)
+353 g/kWh for 2024 and 344 g/kWh for 2025 (as of March 2026). Both series fall by about 2.5 %
+from 2024 to 2025, but this server's values are about 20 % lower. The main reasons are
+methodological:
+
+- UBA divides the emissions of all German power generation by **consumption** (449 TWh in 2025),
+  this server divides by SMARD's **net generation**.
+- UBA's emissions cover all power plants including industrial ones; SMARD's generation data
+  does not contain all of them, so this server's total emissions (about 120 Mt) are lower than
+  UBA's (about 154 Mt implied by 344 g/kWh x 449 TWh).
+- The factors use gross efficiencies, but SMARD reports net generation; per net kWh, coal plants
+  emit a few percent more.
+- "Other conventional" includes blast-furnace gas, which emits far more than the oil value used
+  here.
+
+Use the values for comparisons (hour to hour, day to day, region to region, year to year), not
+as official emission figures.
 
 ### Raw data
 
