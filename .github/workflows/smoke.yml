@@ -1,0 +1,25 @@
+name: SMARD smoke test
+
+# SMARD's chart_data API is unofficial and may change without notice.
+# This checks the live API every day; a failed run triggers GitHub's
+# notification e-mail.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run smoke
