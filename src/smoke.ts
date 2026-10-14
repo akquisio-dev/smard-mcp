@@ -24,6 +24,7 @@ const EXPECTED_TOOLS = [
   "get_market_overview",
   "get_series",
   "list_series",
+  "plan_charging",
 ];
 
 interface ModuleConfig {

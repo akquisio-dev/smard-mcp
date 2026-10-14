@@ -67,7 +67,8 @@ PORT=8450 npm start   # serves http://127.0.0.1:8450/mcp and /health
 
 - "How much solar and wind power is Germany producing right now, and what does power cost?"
 - "How was the German electricity market yesterday?"
-- "When should I charge my electric car tomorrow?" / "When is power greenest today?"
+- "I plug in my car at 18:00 and leave at 7:00, I need 40 kWh at 11 kW: when should I charge, and what do I save?"
+- "When should I run the washing machine tomorrow?" / "When is power greenest today?"
 - "How much CO2 did German power generation emit per kWh last week, and when was it cleanest?"
 - "How much electricity came from solar and lignite in Germany yesterday?"
 - "What was the renewable share in the TenneT zone in March 2026?"
@@ -89,16 +90,17 @@ up to 7 days old; the result then carries `warnings`.
 
 ### Analysis
 
-| Tool                     | Purpose                                                                                                                                                                                                                                                                                         |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_current_status`     | Right now in one call: power per source in GW, renewable share, consumption, net export and CO2 intensity for the newest quarter-hour all series share (`as_of`, `data_age_minutes`), the current 15-minute price and an hourly outlook (price, wind and solar forecast, consumption forecast). |
-| `get_market_overview`    | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                                                                                               |
-| `find_best_hours`        | Best contiguous window of a day (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out.                          |
-| `get_co2_intensity`      | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                                                 |
-| `get_cross_border_flows` | Electricity exchanged with neighbouring countries: net export or import, total exports and imports, per country and the hours with the largest net import/export. Physical (measured) or commercial (scheduled trades).                                                                         |
-| `get_generation_mix`     | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of consumption, measured cross-border net export, CO2 intensity. Regions: DE and the four TSO zones.                                                           |
-| `compare_periods`        | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                                               |
-| `analyze_prices`         | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                                              |
+| Tool                     | Purpose                                                                                                                                                                                                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_current_status`     | Right now in one call: power per source in GW, renewable share, consumption, net export and CO2 intensity for the newest quarter-hour all series share (`as_of`, `data_age_minutes`), the current 15-minute price and an hourly outlook (price, wind and solar forecast, consumption forecast).             |
+| `get_market_overview`    | One day in one call: mix, renewable share, CO2 intensity, consumption, DE-LU price statistics with 30-day context, and the next day's wind/solar/consumption forecasts and prices when published.                                                                                                           |
+| `plan_charging`          | Charging plan between plug-in and departure (also over midnight) for a given energy (kWh) and power (kW): the cheapest, greenest or balanced quarter-hours, not necessarily contiguous, compared with charging right away, with the savings in EUR incl. VAT and optionally a retail cost.                  |
+| `find_best_hours`        | Best contiguous window of a day for appliances with a fixed run time (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out. |
+| `get_co2_intensity`      | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                                                             |
+| `get_cross_border_flows` | Electricity exchanged with neighbouring countries: net export or import, total exports and imports, per country and the hours with the largest net import/export. Physical (measured) or commercial (scheduled trades).                                                                                     |
+| `get_generation_mix`     | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of consumption, measured cross-border net export, CO2 intensity. Regions: DE and the four TSO zones.                                                                       |
+| `compare_periods`        | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                                                           |
+| `analyze_prices`         | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                                                          |
 
 For periods without any data the analysis tools return an error: for the future it names the
 newest available data and points to `get_series` with a `forecast_*` series or `price_de_lu`; for
@@ -130,6 +132,18 @@ intraday wind and solar forecast where available, else the day-ahead forecast.
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to
 8 weeks (15-minute day-ahead prices exist since 1 October 2025). Its context comparison with the
 30 days before can be switched off with `context: false`.
+
+`plan_charging` takes `from` and `to` as ISO date-times or bare times like `18:00` (the next
+occurrence, so a window over midnight needs no date) and plans in 15-minute steps (`resolution:
+"hour"` for whole hours). It uses the best intervals until `energy_kwh` at `power_kw` is reached; if
+the amount does not divide evenly, the worst chosen interval is filled partially. A plan that would
+split the charge but gain less than 0.10 EUR (or one percentage point of green share) over charging
+right away is replaced by one block from the start. Before the day-ahead auction around noon, the
+part of the window after midnight has no prices yet: the result says so first (`prices_until`,
+`missing`) and plans only within the priced part. Savings are the wholesale difference times
+(1 + VAT) and only apply with a dynamic tariff; `surcharge_ct_kwh` (grid fees, levies and margin as
+one flat net amount) only adds an absolute retail cost. `energy_kwh` is energy drawn from the grid;
+charging losses are not modelled.
 
 `find_best_hours` uses actual values for past days, the intraday forecast (updated during the day,
 with the day-ahead forecast where it is missing) for today and the day-ahead forecast for later

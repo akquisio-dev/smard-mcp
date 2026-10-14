@@ -3,6 +3,7 @@ import { ATTRIBUTION } from "./catalog.js";
 import { registerPrompts } from "./prompts.js";
 import { SERVER_NAME, SERVER_VERSION } from "./version.js";
 import { SmardClient } from "./smard.js";
+import { registerPlanCharging } from "./tools/charging.js";
 import { registerCurrentStatus } from "./tools/current-status.js";
 import { registerMarketOverview } from "./tools/market-overview.js";
 import { registerCrossBorderFlows } from "./tools/flows.js";
@@ -26,7 +27,8 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
         "Which tool to use:",
         "- get_current_status: what is happening right now (power per source in GW, consumption, net export, CO2, current price, hourly outlook) for the newest quarter-hour SMARD has published. First choice for 'right now' questions.",
         "- get_market_overview: one day at a glance (mix, renewable share, CO2, consumption, prices with 30-day context, outlook for the next day).",
-        "- find_best_hours: cheapest and/or greenest time window of a day. Use it for questions about good times to use power, e.g. charging an electric car, running a heat pump, dishwasher or washing machine. For today it uses the intraday forecast.",
+        "- plan_charging: when to charge an electric car or battery between plug-in and departure (also over midnight), given kWh and kW; cheapest/greenest intervals, not necessarily contiguous, and the savings in euros compared with charging right away.",
+        "- find_best_hours: cheapest and/or greenest contiguous time window of one day for appliances with a fixed run time (washing machine, dishwasher, heat pump). For today it uses the intraday forecast.",
         "- get_co2_intensity: estimated CO2 intensity per hour, cleanest/dirtiest hours and total emissions. Always say it is an estimate (generation-based, without imports/exports, direct emissions only) and an average of the generation mix, not the marginal emissions of additional consumption.",
         "- get_cross_border_flows: electricity exchanged with neighbouring countries (net import/export, per country, peak hours); physical = measured flows, commercial = scheduled trades.",
         "- get_generation_mix: how electricity was generated in a period (shares by source, renewable share, consumption). First choice for questions like 'how much solar/coal yesterday' or 'renewable share in March'.",
@@ -51,6 +53,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
   registerBestHours(server, client);
   registerMarketOverview(server, client);
   registerCurrentStatus(server, client);
+  registerPlanCharging(server, client);
   registerCrossBorderFlows(server, client);
   registerPrompts(server);
 

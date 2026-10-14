@@ -9,11 +9,11 @@ import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../t
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult, commonFields } from "./common.js";
 import { MIX_REGIONS } from "./generation-mix.js";
 
-const WHOLESALE_NOTE =
+export const WHOLESALE_NOTE =
   "Prices are day-ahead wholesale prices (DE-LU) without taxes, levies and grid fees; for households they matter directly only with a dynamic electricity tariff.";
-const GREEN_DEFINITION =
+export const GREEN_DEFINITION =
   "Green share = wind + solar generation in % of consumption (forecasts for today and later, intraday for today where available, actual values for past days).";
-const BALANCED_DEFINITION =
+export const BALANCED_DEFINITION =
   "Balanced: per interval, price and green share are each scaled to 0..1 over the intervals of the day (cheapest = 1, greenest = 1) and averaged with equal weight.";
 
 /** Start of 15-minute day-ahead trading; before, quarter-hours repeat the hourly price. */
@@ -240,7 +240,8 @@ export function registerBestHours(server: McpServer, client: SmardClient): void 
       title: "Best hours to use electricity",
       description:
         "Finds the best contiguous time window of a day to use electricity: cheapest (day-ahead price DE-LU), greenest (highest share of wind and solar in consumption) or balanced. " +
-        "Use it for questions like 'When should I charge my electric car tomorrow?', 'When is power cheapest today?', 'When should I run the washing machine or heat pump?'. " +
+        "Use it for appliances with a fixed run time and questions like 'When is power cheapest today?', 'When should I run the washing machine or heat pump?'. " +
+        "For charging an electric car or battery between plug-in and departure (kWh, kW, over midnight, savings in euros) use plan_charging. " +
         "Returns the best window per criterion with average price and green share, the worst window for comparison and a table per interval. " +
         "balanced weighs price and green share equally after scaling each to 0..1 over the intervals of the day (cheapest = 1, greenest = 1). " +
         "Without date: tomorrow if the day-ahead prices are already published (after the auction around noon), else the rest of today; intervals that have already started are left out. " +

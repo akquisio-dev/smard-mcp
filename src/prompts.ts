@@ -323,7 +323,7 @@ export function registerPrompts(server: McpServer): void {
     "beste_stunden",
     {
       title: "Beste Stunden für den Stromverbrauch",
-      description: "Günstigstes oder grünstes Zeitfenster (z. B. zum Laden des E-Autos), in festem Format.",
+      description: "Günstigstes oder grünstes Zeitfenster für Geräte mit fester Laufzeit (z. B. Waschmaschine), in festem Format.",
       argsSchema: {
         dauer: optionalText("Dauer in Stunden, 1 bis 12; Standard 3"),
         ziel: optionalText("preis, gruen oder ausgewogen (Standard)"),
