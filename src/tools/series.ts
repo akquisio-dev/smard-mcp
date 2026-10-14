@@ -177,7 +177,8 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           resolution,
           from: formatBerlin(fromMs),
           to: formatBerlin(toMs),
-          covered_until: coveredUntil === null ? null : formatBerlin(coveredUntil),
+          // A yearly capacity value "covers" its whole year; do not report data reaching past the range.
+          covered_until: coveredUntil === null ? null : formatBerlin(capacity ? Math.min(coveredUntil, toMs) : coveredUntil),
           complete: coveredUntil !== null && coveredUntil >= toMs,
           ...(measured && reachesNow && coveredUntil !== null ? { data_age_minutes: Math.max(0, Math.round((now - coveredUntil) / 60_000)) } : {}),
           summary,

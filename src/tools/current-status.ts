@@ -196,7 +196,11 @@ export function registerCurrentStatus(server: McpServer, client: SmardClient): v
           hours_ahead > 0 ? valuesByTime(client, "forecast_intraday_wind_and_solar", region, "hour", hourStart, outlookEnd) : null,
           hours_ahead > 0 ? valuesByTime(client, "forecast_generation_wind_and_solar", region, "hour", hourStart, outlookEnd) : null,
           hours_ahead > 0 ? valuesByTime(client, "forecast_consumption_total", region, "hour", hourStart, outlookEnd) : null,
-          loadCapacity(client, region, now),
+          // Capacity is an extra: if SMARD fails for it, the status still comes back, without utilization.
+          loadCapacity(client, region, now).catch((err: unknown) => {
+            if (!(err instanceof SmardError)) throw err;
+            return null;
+          }),
         ]);
 
         // Generation
@@ -212,7 +216,7 @@ export function registerCurrentStatus(server: McpServer, client: SmardClient): v
           .filter(([, v]) => round1(gw(v)) > 0)
           .map(([key, v]) => {
             const info = findSeries(key)!;
-            const cap = capacity.get(key);
+            const cap = capacity?.get(key);
             return {
               key,
               name: info.name.replace(/^Generation: /, ""),
@@ -239,7 +243,8 @@ export function registerCurrentStatus(server: McpServer, client: SmardClient): v
         if (overCapacity.length > 0) {
           notes.push(`No utilization for ${overCapacity.join(", ")}: the current power exceeds SMARD's installed capacity for ${region}.`);
         }
-        if (capacity.size > 0) {
+        if (capacity === null) notes.push("Installed capacity could not be loaded from SMARD, so there is no utilization.");
+        else if (capacity.size > 0) {
           notes.push(
             "Installed capacity is SMARD's value for the year (one value per year); capacity added since is not included, so utilization of fast-growing sources like solar can be overstated.",
           );

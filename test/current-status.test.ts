@@ -125,6 +125,20 @@ describe("get_current_status", () => {
     expect(data.notes.join(" ")).toMatch(/No utilization for generation_lignite/);
   });
 
+  it("still answers without utilization when capacity cannot be loaded", async () => {
+    const smard = backend();
+    const broken: typeof globalThis.fetch = async (input) =>
+      /\/188\/DE\/188_DE_year_/.test(String(input)) ? new Response("not json", { status: 200 }) : smard.fetch(input);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(NOW));
+    const client = await connect(broken);
+    const res = await client.callTool({ name: "get_current_status", arguments: {} });
+    const data = res.structuredContent as unknown as Result;
+    expect(res.isError).toBeFalsy();
+    expect(data.generation.sources.every((s) => s.utilization_pct === null)).toBe(true);
+    expect(data.notes.join(" ")).toMatch(/could not be loaded/);
+  });
+
   it("names series that lag behind instead of waiting for them", async () => {
     const { data, text } = await status();
     expect(data.lagging).toEqual([{ key: "generation_biomass", data_until: "2026-10-14T09:15:00+02:00" }]);
