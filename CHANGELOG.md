@@ -5,6 +5,13 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
+## [1.0.1] - 2026-10-14
+
+### Changed
+
+- `@modelcontextprotocol/sdk` 1.32.1 (was 1.31.0).
+- Development tools: eslint 10.12.0, typescript-eslint 8.71.1, vitest 5.0.3.
+
 ## [1.0.0] - 2026-10-13
 
 First stable release. From now on, output fields and tool names only change in a backwards
@@ -127,6 +134,7 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
+[1.0.1]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.7.0...v0.8.0
