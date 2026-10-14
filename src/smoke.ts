@@ -19,6 +19,7 @@ const EXPECTED_TOOLS = [
   "find_best_hours",
   "get_co2_intensity",
   "get_cross_border_flows",
+  "get_current_status",
   "get_generation_mix",
   "get_market_overview",
   "get_series",
@@ -101,6 +102,9 @@ interface Check {
 
 const CHECKS: Check[] = [
   { name: "generation solar (4068)", filter: 4068, region: "DE", resolution: "hour", min: 0, max: 80_000, maxAgeMs: 48 * HOUR, stepMs: HOUR },
+  // get_current_status looks back 6 hours for quarter-hour values.
+  { name: "generation solar, 15 min (4068)", filter: 4068, region: "DE", resolution: "quarterhour", min: 0, max: 20_000, maxAgeMs: 6 * HOUR, stepMs: HOUR / 4 },
+  { name: "consumption total, 15 min (410)", filter: 410, region: "DE", resolution: "quarterhour", min: 5_000, max: 25_000, maxAgeMs: 6 * HOUR, stepMs: HOUR / 4 },
   { name: "consumption total (410)", filter: 410, region: "DE", resolution: "hour", min: 20_000, max: 100_000, maxAgeMs: 48 * HOUR, stepMs: HOUR },
   { name: "day-ahead price DE-LU (4169)", filter: 4169, region: "DE", resolution: "hour", min: -500, max: 4_000, maxAgeMs: 48 * HOUR, stepMs: HOUR },
   { name: "day-ahead price DE-LU, 15 min (4169)", filter: 4169, region: "DE", resolution: "quarterhour", min: -500, max: 4_000, maxAgeMs: 48 * HOUR, stepMs: HOUR / 4 },

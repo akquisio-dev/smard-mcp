@@ -7,7 +7,7 @@ import { CO2_DISCLAIMER, EMISSION_FACTORS, EMISSION_FACTORS_SOURCE, co2Intensity
 import type { Region } from "../catalog.js";
 import type { SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, commonFields } from "./common.js";
 import { MIX_REGIONS, coverageText, metaOf, metaShape, sourceName } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
@@ -17,7 +17,7 @@ const MAX_LISTED_INTERVALS = 744;
 const intervalPoint = z.object({ time: z.string(), g_per_kwh: z.number() });
 
 const outputShape = {
-  ...warningsField,
+  ...commonFields,
   ...metaShape,
   co2_intensity_g_per_kwh: z.number().describe("Generation-weighted mean: total emissions / total generation"),
   total_emissions_t: z.number().describe("Estimated direct CO2 emissions in tonnes"),
@@ -103,6 +103,7 @@ export function registerCo2Intensity(server: McpServer, client: SmardClient): vo
         "and the estimated total emissions in tonnes, with a breakdown by source. " +
         "Method: generation per source from SMARD x direct combustion emission factors (Umweltbundesamt). " +
         "An estimate: generation-based, without imports/exports, direct emissions only. " +
+        "It is the average intensity of the generation mix, not the marginal emissions of additional consumption. " +
         "Hourly values up to 8 weeks, daily values above. Without from/to: yesterday.",
       inputSchema: {
         from: z.string().optional().describe("Start (inclusive), YYYY-MM-DD or ISO 8601 date-time (Berlin time if no offset). Default: yesterday."),

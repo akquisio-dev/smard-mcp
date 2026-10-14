@@ -53,9 +53,10 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
       title: "Get SMARD time series",
       description:
         "Fetches values of one SMARD time series for a time range. " +
-        "Generation and consumption values are energy per interval in MWh (e.g. per hour at hourly resolution); prices are in EUR/MWh. " +
+        "Generation and consumption values are energy per interval in MWh (e.g. per hour at hourly resolution); with unit MW they are the average power over each interval instead. Prices are in EUR/MWh. " +
         "Price series belong to a bidding zone given by the series key, not to a region, so they only accept region DE or DE-LU. " +
-        "covered_until is the end of the last returned interval; complete tells whether the values reach the end of the range. " +
+        "covered_until is the end of the last returned interval; complete tells whether the values reach the end of the range; " +
+        "for measured series whose range reaches the present, data_age_minutes tells how old the newest value is. " +
         "Times are Europe/Berlin. Without from/to, the last 24 hours plus the next 24 hours are returned (prices and forecasts reach into the future); with only from, 48 hours from that point. " +
         "With resolution week, month or year a value is only returned if the period starts inside the range, and the current, unfinished period is missing. " +
         `At most ${MAX_POINTS} points per call; use a coarser resolution for long ranges, or include_points=false for the summary only.`,
@@ -74,6 +75,10 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           .string()
           .optional()
           .describe("End (exclusive). YYYY-MM-DD includes that whole day. ISO 8601 date-time also accepted."),
+        unit: z
+          .enum(["MWh", "MW"])
+          .default("MWh")
+          .describe("Energy series only: MWh per interval, or MW = average power over each interval (no need to multiply quarter-hours by 4)."),
         include_points: z
           .boolean()
           .default(true)
@@ -81,7 +86,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ series, region, resolution, from, to, include_points }) =>
+    async ({ series, region, resolution, from, to, unit, include_points }) =>
       guarded(async () => {
         const info = findSeries(series);
         if (!info) return errorResult(`Unknown series "${series}". Call list_series for valid keys.`);
@@ -89,6 +94,10 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           throw new InputError(
             `${info.key} is the price of bidding zone ${info.zone} and does not vary by region. Use region DE or DE-LU; pick the zone via the series key (see list_series, category price).`,
           );
+        }
+
+        if (info.unit !== "MWh" && unit === "MW") {
+          throw new InputError(`${info.key} is in ${info.unit}; unit MW only applies to energy series (generation, consumption, forecasts, flows).`);
         }
 
         const now = Date.now();
@@ -104,7 +113,10 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
 
         // Price series are identical for every region; always ask SMARD for DE.
         const queryRegion: Region = info.zone ? "DE" : region;
-        const points = await client.getRange(info.filter, queryRegion, resolution, fromMs, toMs);
+        const raw = await client.getRange(info.filter, queryRegion, resolution, fromMs, toMs);
+        // Average power: energy divided by the real interval length (DST days have 23 or 25 hours).
+        const points =
+          unit === "MW" ? raw.map((p) => ({ ...p, value: (p.value * HOUR) / (nextIntervalStart(p.timestamp, resolution) - p.timestamp) })) : raw;
         if (include_points && points.length > MAX_POINTS) {
           throw new InputError(
             `The range has ${points.length} values at resolution "${resolution}" (limit ${MAX_POINTS}). Use a shorter range, a coarser resolution or include_points=false.`,
@@ -121,8 +133,8 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
                 min: round2(Math.min(...values)),
                 max: round2(Math.max(...values)),
                 mean: round2(values.reduce((a, b) => a + b, 0) / values.length),
-                // A sum of prices has no meaning, so only energy series get one.
-                ...(info.unit === "MWh" ? { sum: round2(values.reduce((a, b) => a + b, 0)) } : {}),
+                // A sum of prices or of power has no meaning, so only energy values get one.
+                ...(info.unit === "MWh" && unit === "MWh" ? { sum: round2(values.reduce((a, b) => a + b, 0)) } : {}),
                 first: formatBerlin(points[0]!.timestamp),
                 last: formatBerlin(last!.timestamp),
               };
@@ -138,10 +150,13 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           notes.push("SMARD publishes forecasts for the next day during the course of the current day; later values may not be available yet.");
         }
 
+        const measured = !info.category.startsWith("forecast") && info.category !== "price";
+        const reachesNow = toMs >= now - (interval ?? 0);
         const result = {
+          server_time: formatBerlin(now),
           series: info.key,
           name: info.name,
-          unit: info.unit,
+          unit: info.unit === "MWh" ? unit : info.unit,
           ...(info.zone ? { bidding_zone: info.zone } : {}),
           region,
           resolution,
@@ -149,9 +164,10 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           to: formatBerlin(toMs),
           covered_until: coveredUntil === null ? null : formatBerlin(coveredUntil),
           complete: coveredUntil !== null && coveredUntil >= toMs,
+          ...(measured && reachesNow && coveredUntil !== null ? { data_age_minutes: Math.max(0, Math.round((now - coveredUntil) / 60_000)) } : {}),
           summary,
           ...(notes.length > 0 ? { notes } : {}),
-          ...(include_points ? { points: points.map((p) => ({ time: formatBerlin(p.timestamp), value: p.value })) } : {}),
+          ...(include_points ? { points: points.map((p) => ({ time: formatBerlin(p.timestamp), value: unit === "MW" ? round2(p.value) : p.value })) } : {}),
           source: ATTRIBUTION,
         };
         const json = JSON.stringify(result);

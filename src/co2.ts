@@ -56,7 +56,8 @@ export const EMISSION_FACTORS: Readonly<Record<string, EmissionFactor>> = {
 };
 
 export const CO2_DISCLAIMER =
-  "Estimate based on generation in this region and direct combustion emissions only; imports, exports and upstream emissions are not included.";
+  "Estimate based on generation in this region and direct combustion emissions only; imports, exports and upstream emissions are not included. " +
+  "It is the average intensity of the generation mix, not the marginal emissions caused by additional consumption (e.g. charging a car now).";
 
 /** g CO2 per kWh for a set of generation amounts (MWh per series key); null if nothing was generated. */
 export function co2Intensity(generationMWh: ReadonlyMap<string, number>): number | null {

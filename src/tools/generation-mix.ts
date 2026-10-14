@@ -8,7 +8,7 @@ import { ATTRIBUTION, GENERATION_SERIES, type Region } from "../catalog.js";
 import { co2Intensity } from "../co2.js";
 import type { SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, commonFields } from "./common.js";
 import { parseRange } from "./range.js";
 
 export const MIX_REGIONS = ["DE", "50Hertz", "Amprion", "TenneT", "TransnetBW"] as const;
@@ -198,7 +198,7 @@ export function registerGenerationMix(server: McpServer, client: SmardClient): v
         to: z.string().optional().describe("End (exclusive); a plain YYYY-MM-DD includes that day. Default: end of the from day."),
         region: z.enum(MIX_REGIONS).default("DE").describe("Germany or one of the four transmission system operator zones."),
       },
-      outputSchema: { ...metaShape, ...mixShape, ...warningsField },
+      outputSchema: { ...metaShape, ...mixShape, ...commonFields },
       annotations: { title: "Electricity generation mix", ...READ_ONLY_REMOTE },
     },
     async ({ from, to, region }) =>

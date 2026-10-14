@@ -6,7 +6,7 @@ import { DAY, HOURLY_MAX_RANGE_MS, INTERVAL_MS, PRICE_KEY, fetchAligned, mean, m
 import { ATTRIBUTION, findSeries } from "../catalog.js";
 import type { DataPoint, SmardClient } from "../smard.js";
 import { formatBerlin } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, guarded, round1, round2, toolResult, warningsField } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, guarded, round1, round2, toolResult, commonFields } from "./common.js";
 import { coverageText } from "./generation-mix.js";
 import { parseRange } from "./range.js";
 
@@ -46,7 +46,7 @@ export const priceContextSchema = z
   );
 
 const outputShape = {
-  ...warningsField,
+  ...commonFields,
   bidding_zone: z.literal("DE-LU"),
   region: z.literal("DE-LU"),
   from: z.string(),

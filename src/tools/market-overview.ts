@@ -7,7 +7,7 @@ import { ATTRIBUTION } from "../catalog.js";
 import { CO2_DISCLAIMER } from "../co2.js";
 import type { SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, warningsField } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, toolResult, commonFields } from "./common.js";
 import { co2Summary } from "./co2.js";
 import { MIX_REGIONS, coverageText, energyText, loadMix, metaOf, mixShape, netFlowText } from "./generation-mix.js";
 import { analyzePrices, priceContextSchema, type PriceAnalysis } from "./prices.js";
@@ -38,7 +38,7 @@ const priceSummary = z.object({
 });
 
 const outputShape = {
-  ...warningsField,
+  ...commonFields,
   date: z.string(),
   weekday: z.string(),
   region: z.string(),

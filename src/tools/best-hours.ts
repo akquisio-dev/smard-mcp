@@ -6,7 +6,7 @@ import { HOUR, mean } from "../analysis.js";
 import { ATTRIBUTION, findSeries, type Region } from "../catalog.js";
 import { SmardError, type SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../time.js";
-import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult, warningsField } from "./common.js";
+import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult, commonFields } from "./common.js";
 import { MIX_REGIONS } from "./generation-mix.js";
 
 const WHOLESALE_NOTE =
@@ -97,7 +97,7 @@ function describe(run: Row[], stepMs: number): Window {
 }
 
 /** Values of one series by timestamp; null if SMARD does not offer the series for the region. */
-async function series(client: SmardClient, key: string, region: Region, resolution: Resolution, from: number, to: number) {
+export async function valuesByTime(client: SmardClient, key: string, region: Region, resolution: Resolution, from: number, to: number) {
   const info = findSeries(key)!;
   try {
     const points = await client.getRange(info.filter, region, resolution, from, to);
@@ -138,7 +138,7 @@ export type GreenSource = "actual" | "day_ahead" | "intraday";
  * Prefers the intraday forecast per interval and falls back to day-ahead
  * where the intraday value is missing.
  */
-function preferIntraday(intraday: Map<number, number> | null, dayAhead: Map<number, number> | null) {
+export function preferIntraday(intraday: Map<number, number> | null, dayAhead: Map<number, number> | null) {
   const merged = new Map(dayAhead ?? []);
   let fromIntraday = 0;
   for (const [t, v] of intraday ?? []) {
@@ -162,7 +162,7 @@ export async function loadRows(
   resolution: Resolution = "hour",
   region: Region = "DE",
 ): Promise<{ rows: Row[]; intradayIntervals: number }> {
-  const get = (key: string, r: Region = region) => series(client, key, r, resolution, from, to);
+  const get = (key: string, r: Region = region) => valuesByTime(client, key, r, resolution, from, to);
 
   async function windAndSolar(): Promise<{ values: Map<number, number> | null; intradayIntervals: number }> {
     if (source === "actual") {
@@ -201,7 +201,7 @@ const windowSchema = z.object({
 });
 
 const outputShape = {
-  ...warningsField,
+  ...commonFields,
   date: z.string(),
   region: z.string().describe("Region of the green share"),
   bidding_zone: z.literal("DE-LU").describe("Prices always refer to the DE-LU bidding zone"),
@@ -273,7 +273,7 @@ export function registerBestHours(server: McpServer, client: SmardClient): void 
             throw new InputError((err as Error).message);
           }
         } else {
-          const tomorrowPrices = await series(client, "price_de_lu", "DE", "hour", tomorrow, nextIntervalStart(tomorrow, "day"));
+          const tomorrowPrices = await valuesByTime(client, "price_de_lu", "DE", "hour", tomorrow, nextIntervalStart(tomorrow, "day"));
           dayStart = tomorrowPrices && tomorrowPrices.size > 0 ? tomorrow : today;
           if (dayStart === today) {
             notes.push("Day-ahead prices for tomorrow are not published yet (the auction results come out around noon), so the rest of today is shown.");

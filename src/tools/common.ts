@@ -4,6 +4,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { runWithContext } from "../context.js";
 import { SmardError } from "../smard.js";
+import { formatBerlin } from "../time.js";
 
 export function errorResult(message: string): CallToolResult {
   return { isError: true, content: [{ type: "text", text: message }] };
@@ -16,10 +17,13 @@ export function toolResult(text: string, structured: Record<string, unknown>): C
 
 /**
  * Runs a tool: expected failures (bad input, SMARD errors) become tool
- * errors, and warnings raised during the call (e.g. data served from the
- * cache because SMARD was down) are added to the result.
+ * errors, warnings raised during the call (e.g. data served from the cache
+ * because SMARD was down) are added to the result, and so is the server
+ * time, so that "now" never has to be guessed. A tool whose text is its JSON
+ * puts server_time into that JSON itself.
  */
 export async function guarded(run: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  const serverTime = formatBerlin(Date.now());
   let outcome: { value: CallToolResult; warnings: string[] };
   try {
     outcome = await runWithContext(run);
@@ -28,22 +32,28 @@ export async function guarded(run: () => Promise<CallToolResult>): Promise<CallT
     throw err;
   }
   const { value, warnings } = outcome;
-  if (warnings.length === 0 || value.isError) return value;
-  const text = warnings.map((w) => `Warning: ${w}`).join("\n");
+  if (value.isError) return value;
+  const hasTime = value.structuredContent !== undefined && "server_time" in value.structuredContent;
+  const lines = [...warnings.map((w) => `Warning: ${w}`), ...(hasTime ? [] : [`Server time: ${serverTime}`])];
+  if (lines.length === 0) return value;
+  const text = lines.join("\n");
   const content = value.content.map((c, i) => (i === 0 && c.type === "text" ? { ...c, text: `${c.text}\n${text}` } : c));
   return {
     ...value,
     content,
-    ...(value.structuredContent ? { structuredContent: { ...value.structuredContent, warnings } } : {}),
+    ...(value.structuredContent
+      ? { structuredContent: { ...value.structuredContent, ...(warnings.length > 0 ? { warnings } : {}), ...(hasTime ? {} : { server_time: serverTime }) } }
+      : {}),
   };
 }
 
-/** Optional field every structured result may carry. */
-export const warningsField = {
+/** Fields every structured result may carry; guarded() fills them in. */
+export const commonFields = {
   warnings: z
     .array(z.string())
     .optional()
     .describe("Problems during this call, e.g. values served from the cache because SMARD did not answer"),
+  server_time: z.string().optional().describe("Time of the call (Europe/Berlin)"),
 };
 
 /** Invalid tool arguments that the schema cannot catch (e.g. ranges). */
