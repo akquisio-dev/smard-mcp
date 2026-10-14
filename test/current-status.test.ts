@@ -108,9 +108,10 @@ describe("get_current_status", () => {
   });
 
   it("names series that lag behind instead of waiting for them", async () => {
-    const { data } = await status();
+    const { data, text } = await status();
     expect(data.lagging).toEqual([{ key: "generation_biomass", data_until: "2026-10-14T09:15:00+02:00" }]);
     expect(data.notes.join(" ")).toMatch(/generation_biomass is left out/);
+    expect(text.split("\n")[1]).toMatch(/^Incomplete: generation_biomass not yet published/);
   });
 
   it("gives the price of the current quarter-hour and an hourly outlook", async () => {

@@ -78,7 +78,7 @@ const outputShape = {
   outlook: z.array(outlookSchema).describe("Hourly outlook from the current hour on"),
   lagging: z
     .array(z.object({ key: z.string(), data_until: z.string() }))
-    .describe("Series left out of the snapshot because SMARD has published them only up to data_until"),
+    .describe("Series left out of the snapshot (and of all totals and shares) because SMARD has published them only up to data_until"),
   notes: z.array(z.string()),
   source: z.string(),
 };
@@ -264,6 +264,9 @@ function statusText(r: Result): string {
   const hhmm = (s: string) => s.slice(11, 16);
   const lines = [
     `Electricity ${r.region} at ${hhmm(r.as_of)} to ${hhmm(r.interval_end)} (${r.as_of.slice(0, 10)}; data ${r.data_age_minutes} minutes old):`,
+    ...(r.lagging.length > 0
+      ? [`Incomplete: ${r.lagging.map((l) => l.key).join(", ")} not yet published for this quarter-hour, so totals and shares leave them out.`]
+      : []),
     `Generation ${fmt1(g.total_gw)} GW, renewable ${g.renewable_share_pct === null ? "n/a" : fmt1(g.renewable_share_pct) + " %"} (${fmt1(g.renewable_gw)} GW); ` +
       `consumption ${r.consumption_gw === null ? "n/a" : fmt1(r.consumption_gw) + " GW"}; ` +
       `cross-border ${r.net_export_gw === null ? "n/a" : r.net_export_gw < 0 ? `net import ${fmt1(-r.net_export_gw)} GW` : `net export ${fmt1(r.net_export_gw)} GW`}; ` +

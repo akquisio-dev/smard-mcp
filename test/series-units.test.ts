@@ -11,6 +11,7 @@ function backend() {
       410: { value: () => 1_000, quarterValue: () => 250 },
       4169: { value: () => 80, aggregate: "mean" },
       1223: { value: () => 500 },
+      4629: { value: () => 300 },
     },
   });
 }
@@ -83,6 +84,8 @@ describe("server time and data age", () => {
     expect(JSON.parse(past.text)).not.toHaveProperty("data_age_minutes");
     const price = await call("get_series", { series: "price_de_lu", from: "2026-10-27T06:00", to: "2026-10-27T12:00" });
     expect(JSON.parse(price.text)).not.toHaveProperty("data_age_minutes");
+    const commercial = await call("get_series", { series: "flow_commercial_net_export", from: "2026-10-27T06:00", to: "2026-10-27T12:00" });
+    expect(JSON.parse(commercial.text)).not.toHaveProperty("data_age_minutes");
   });
 
   it("analysis tools carry server_time in the data and the text", async () => {

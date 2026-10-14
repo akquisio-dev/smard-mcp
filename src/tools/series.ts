@@ -150,7 +150,8 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           notes.push("SMARD publishes forecasts for the next day during the course of the current day; later values may not be available yet.");
         }
 
-        const measured = !info.category.startsWith("forecast") && info.category !== "price";
+        // Commercial exchanges are scheduled until the end of the day, so like forecasts they have no "age".
+        const measured = !info.category.startsWith("forecast") && info.category !== "price" && info.key !== "flow_commercial_net_export";
         const reachesNow = toMs >= now - (interval ?? 0);
         const result = {
           server_time: formatBerlin(now),
