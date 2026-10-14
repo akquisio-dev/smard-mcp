@@ -140,7 +140,9 @@ the amount does not divide evenly, the worst chosen interval is filled partially
 split the charge but gain less than 0.10 EUR (or one percentage point of green share) over charging
 right away is replaced by one block from the start. Before the day-ahead auction around noon, the
 part of the window after midnight has no prices yet: the result says so first (`prices_until`,
-`missing`) and plans only within the priced part. Savings are the wholesale difference times
+`missing`) and plans only within the priced part; the energy left out is `unplanned_kwh`, while
+`shortfall_kwh` is only energy that does not fit before departure even at full power. A bare `from`
+time up to 12 hours ago means the car is plugged in already, so planning starts now. Savings are the wholesale difference times
 (1 + VAT) and only apply with a dynamic tariff; `surcharge_ct_kwh` (grid fees, levies and margin as
 one flat net amount) only adds an absolute retail cost. `energy_kwh` is energy drawn from the grid;
 charging losses are not modelled.

@@ -20,6 +20,9 @@ type Resolution = "hour" | "quarterhour";
 
 const STEP_MS: Record<Resolution, number> = { hour: HOUR, quarterhour: HOUR / 4 };
 
+/** A bare `from` time this far in the past still counts as today's plug-in. */
+const PLUGGED_IN_MS = 12 * HOUR;
+
 /** Longest plug-in window; day-ahead prices reach at most to the end of tomorrow. */
 export const MAX_WINDOW_MS = 48 * HOUR;
 
@@ -143,7 +146,10 @@ const outputShape = {
     .number()
     .nullable()
     .describe("charge_now minus plan, wholesale difference incl. VAT; only real with a dynamic tariff; null if either has an unpriced interval"),
-  shortfall_kwh: z.number().describe("Energy that does not fit into the usable intervals of the window"),
+  shortfall_kwh: z.number().describe("Energy that cannot be charged before departure even at full power the whole time"),
+  unplanned_kwh: z
+    .number()
+    .describe("Energy left out because part of the window has no prices or forecasts yet; there is time for it, ask again once the data is published"),
   vat_pct: z.number(),
   surcharge_ct_kwh: z.number().nullable(),
   missing: z.array(z.string()),
@@ -237,8 +243,9 @@ export function registerPlanCharging(server: McpServer, client: SmardClient): vo
         let fromMs: number;
         let toMs: number;
         try {
-          fromMs = from ? parseMoment(from, now - HOUR) : now;
-          toMs = parseMoment(to, fromMs);
+          // A bare plug-in time up to 12 hours ago means "plugged in already".
+          fromMs = from ? parseMoment(from, now - PLUGGED_IN_MS) : now;
+          toMs = parseMoment(to, Math.max(fromMs, now));
         } catch (err) {
           throw new InputError((err as Error).message);
         }
@@ -276,14 +283,14 @@ export function registerPlanCharging(server: McpServer, client: SmardClient): vo
 
         let criterion: Criterion = optimize;
         let order = contiguous ? null : rankSlots(rows, criterion);
-        let run = contiguous ? bestRun(rows, criterion, Math.min(needed, rows.length), step) : null;
+        let run = contiguous ? longestRun(rows, criterion, Math.min(needed, rows.length), step) : null;
         if ((contiguous ? run : order)?.length === 0 || (contiguous && !run)) {
-          const fallback = CRITERIA.find((c) => (contiguous ? bestRun(rows, c, Math.min(needed, rows.length), step) : rankSlots(rows, c).length > 0));
+          const fallback = CRITERIA.find((c) => (contiguous ? longestRun(rows, c, 1, step) : rankSlots(rows, c).length > 0));
           if (!fallback) throw new InputError(`No plan can be computed: ${missing.join(" ")}`);
           notes.push(`"${optimize}" cannot be computed with the available data, so "${fallback}" is used instead.`);
           criterion = fallback;
           order = contiguous ? null : rankSlots(rows, criterion);
-          run = contiguous ? bestRun(rows, criterion, Math.min(needed, rows.length), step) : null;
+          run = contiguous ? longestRun(rows, criterion, Math.min(needed, rows.length), step) : null;
         }
 
         const planSlots = contiguous ? fill(run!, energy_kwh, kwhPerSlot) : fillWorstLast(order!, energy_kwh, kwhPerSlot, needed);
@@ -299,10 +306,17 @@ export function registerPlanCharging(server: McpServer, client: SmardClient): vo
           plan = chargeNow;
           notes.push("Charging right away is practically as good (under 0.10 EUR or 1 percentage point green share difference), so the plan is one block from the start.");
         }
-        const shortfall = Math.max(0, energy_kwh - plan.energy_kwh);
+        // Physically too short a window, versus energy that only lacks prices or forecasts.
+        const shortfall = Math.max(0, energy_kwh - rows.length * kwhPerSlot);
+        const unplanned = Math.max(0, energy_kwh - plan.energy_kwh - shortfall);
         if (shortfall > 0.005) {
           missing.push(
-            `${fmt1(shortfall)} of ${fmt1(energy_kwh)} kWh do not fit: ${contiguous ? "the best uninterrupted block" : "the usable intervals"} hold only ${fmt1(plan.energy_kwh)} kWh at ${fmt1(power_kw)} kW.`,
+            `${fmt1(shortfall)} of ${fmt1(energy_kwh)} kWh cannot be charged before departure: ${fmt1(power_kw)} kW over the window give at most ${fmt1(rows.length * kwhPerSlot)} kWh.`,
+          );
+        }
+        if (unplanned > 0.005) {
+          missing.push(
+            `${fmt1(unplanned)} kWh are not planned because ${contiguous ? "no uninterrupted block of the needed length has" : "the rest of the window has no"} prices or forecasts yet. There is enough time for them; ask again once the data is published.`,
           );
         }
         const comparable = plan.cost_wholesale_eur !== null && chargeNow.cost_wholesale_eur !== null && Math.abs(plan.energy_kwh - chargeNow.energy_kwh) < 0.005;
@@ -332,6 +346,7 @@ export function registerPlanCharging(server: McpServer, client: SmardClient): vo
           charge_now: chargeNow,
           savings_eur: savings,
           shortfall_kwh: round2(shortfall),
+          unplanned_kwh: round2(unplanned),
           vat_pct,
           surcharge_ct_kwh: surcharge,
           missing,
@@ -341,6 +356,15 @@ export function registerPlanCharging(server: McpServer, client: SmardClient): vo
         return toolResult(chargingText(result), result);
       }),
   );
+}
+
+/** Best run of `count` intervals, or of fewer if the data has no run that long; null if none. */
+export function longestRun(rows: readonly Row[], criterion: Criterion, count: number, stepMs: number): number[] | null {
+  for (let c = count; c >= 1; c--) {
+    const run = bestRun(rows, criterion, c, stepMs);
+    if (run) return run;
+  }
+  return null;
 }
 
 /** A split plan that gains less than 0.10 EUR (or 1 point green share) over one block from the start is not worth it. */
@@ -386,7 +410,7 @@ function chargingText(r: Result): string {
     `Charging right away: ${block(r.charge_now) || "no interval"}; ${price(r.charge_now)}${green(r.charge_now)}${retail(r.charge_now)}.`,
     r.savings_eur === null
       ? "Savings: n/a (not every interval used has a price)."
-      : `Savings with a dynamic tariff: ${r.savings_eur.toFixed(2)} EUR incl. ${fmt1(r.vat_pct)} % VAT (with a fixed tariff: none).`,
+      : `Savings with a dynamic tariff${partial ? " (within the part with data only)" : ""}: ${r.savings_eur.toFixed(2)} EUR incl. ${fmt1(r.vat_pct)} % VAT (with a fixed tariff: none).`,
   );
   for (const n of r.notes) lines.push(`Note: ${n}`);
   lines.push(`Source: ${r.source}`);

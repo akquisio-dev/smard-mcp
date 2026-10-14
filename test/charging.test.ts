@@ -43,6 +43,7 @@ interface Result {
   charge_now: Schedule;
   savings_eur: number | null;
   shortfall_kwh: number;
+  unplanned_kwh: number;
   missing: string[];
   notes: string[];
 }
@@ -104,6 +105,8 @@ describe("plan_charging", () => {
     expect(blocks(data.plan)).toEqual(["14T22:00-00:00 22"]);
     expect(text.split("\n")[0]).toMatch(/^Attention: Day-ahead prices exist only until 2026-10-15T00:00/);
     expect(text).toMatch(/Plan \(only within the part with data, until 15\.10 00:00\)/);
+    expect(text).toMatch(/Savings with a dynamic tariff \(within the part with data only\)/);
+    expect(data.shortfall_kwh).toBe(0);
   });
 
   it("gives no savings when charging right away would use unpriced hours", async () => {
@@ -111,7 +114,9 @@ describe("plan_charging", () => {
     const { data } = await plan({ from: "22:00", to: "07:00", energy_kwh: 33, power_kw: 11 }, backend({ pricesUntil: elevenPm }));
     expect(data.charge_now.cost_wholesale_eur).toBeNull();
     expect(data.savings_eur).toBeNull();
-    expect(data.shortfall_kwh).toBe(22);
+    // 22:00 to 07:00 at 11 kW holds 99 kWh: nothing is physically short, 22 kWh just lack prices.
+    expect(data.shortfall_kwh).toBe(0);
+    expect(data.unplanned_kwh).toBe(22);
   });
 
   it("reports negative prices as negative cost", async () => {
@@ -122,6 +127,22 @@ describe("plan_charging", () => {
   it("plans one uninterrupted block with contiguous", async () => {
     const { data } = await plan({ from: "18:00", to: "07:00", energy_kwh: 33, power_kw: 11, contiguous: true });
     expect(blocks(data.plan)).toEqual(["15T01:00-04:00 33"]);
+  });
+
+  it("plans the longest block the data allows and reports the rest as unplanned", async () => {
+    const midnight = Date.parse("2026-10-14T22:00:00Z");
+    const { data, text } = await plan({ from: "22:00", to: "07:00", energy_kwh: 44, power_kw: 11, contiguous: true }, backend({ pricesUntil: midnight }));
+    expect(blocks(data.plan)).toEqual(["14T22:00-00:00 22"]);
+    expect(data.shortfall_kwh).toBe(0);
+    expect(data.unplanned_kwh).toBe(22);
+    expect(text).toMatch(/22\.0 kWh are not planned/);
+  });
+
+  it("treats a plug-in time that has passed as plugged in already", async () => {
+    // 12:00 now, plugged in at 10:00, leaving at 17:00: today, from now on.
+    const { data } = await plan({ from: "10:00", to: "17:00", energy_kwh: 11, power_kw: 11 });
+    expect(data.from).toBe("2026-10-14T12:00:00+02:00");
+    expect(data.to).toBe("2026-10-14T17:00:00+02:00");
   });
 
   it("adds a retail cost with a surcharge", async () => {
@@ -141,7 +162,8 @@ describe("plan_charging", () => {
     const { data, text } = await plan({ from: "2026-10-24T18:00", to: "07:00", energy_kwh: 100, power_kw: 1 }, backend(), Date.parse("2026-10-24T10:00:00Z"));
     expect(data.plan.energy_kwh).toBe(14);
     expect(data.shortfall_kwh).toBe(86);
-    expect(text).toMatch(/86\.0 of 100\.0 kWh do not fit/);
+    expect(data.unplanned_kwh).toBe(0);
+    expect(text).toMatch(/86\.0 of 100\.0 kWh cannot be charged before departure/);
   });
 
   it("rejects windows that are reversed, too long or in the past", async () => {

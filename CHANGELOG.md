@@ -14,7 +14,8 @@ changes; they are marked as such.
   in kW, picks the cheapest, greenest or balanced quarter-hours (not necessarily contiguous, or one
   block with `contiguous`), compares with charging right away and gives the savings in EUR incl.
   VAT; with `surcharge_ct_kwh` also a retail cost. Says first when tomorrow's prices are not
-  published yet.
+  published yet and reports the energy that could not be planned for lack of data
+  (`unplanned_kwh`) apart from energy that physically does not fit (`shortfall_kwh`).
 
 ### Changed
 
