@@ -5,6 +5,22 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
+## [1.2.0] - 2026-10-14
+
+### Added
+
+- `plan_charging`: when to charge an electric car or battery between plug-in and departure, also
+  over midnight (`from`/`to` accept bare times like `18:00`). Takes the energy in kWh and the power
+  in kW, picks the cheapest, greenest or balanced quarter-hours (not necessarily contiguous, or one
+  block with `contiguous`), compares with charging right away and gives the savings in EUR incl.
+  VAT; with `surcharge_ct_kwh` also a retail cost. Says first when tomorrow's prices are not
+  published yet.
+
+### Changed
+
+- `find_best_hours` and the server instructions now point car charging to `plan_charging`;
+  `find_best_hours` is for appliances with a fixed run time.
+
 ## [1.1.0] - 2026-10-14
 
 From feedback of an AI agent that used the connector.
@@ -153,6 +169,7 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
+[1.2.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.9.0...v1.0.0
