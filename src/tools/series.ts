@@ -14,6 +14,9 @@ export const MAX_POINTS = 2000;
 const HOUR = 3_600_000;
 const DEFAULT_WINDOW_MS = 24 * HOUR;
 
+/** Start of SMARD's installed capacity data. */
+const CAPACITY_SINCE = "2015-01-01";
+
 /** Interval length for resolutions where a gap at the end can be detected. */
 const INTERVAL_MS: Partial<Record<string, number>> = { quarterhour: HOUR / 4, hour: HOUR, day: 24 * HOUR };
 
@@ -26,7 +29,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
         "Lists the SMARD time series this server can fetch, with their key, unit and category, plus the supported regions and resolutions, the server version and the current server time (Europe/Berlin).",
       inputSchema: {
         category: z
-          .enum(["generation", "consumption", "price", "forecast_generation", "forecast_consumption", "cross_border"])
+          .enum(["generation", "consumption", "price", "forecast_generation", "forecast_consumption", "cross_border", "capacity"])
           .optional()
           .describe("Only list series of this category."),
       },
@@ -54,6 +57,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
       description:
         "Fetches values of one SMARD time series for a time range. " +
         "Generation and consumption values are energy per interval in MWh (e.g. per hour at hourly resolution); with unit MW they are the average power over each interval instead. Prices are in EUR/MWh. " +
+        "Installed capacity series (capacity_*) are in MW with one value per year (resolution is always year; without from/to all years since 2015). " +
         "Price series belong to a bidding zone given by the series key, not to a region, so they only accept region DE or DE-LU. " +
         "covered_until is the end of the last returned interval; complete tells whether the values reach the end of the range; " +
         "for measured series whose range reaches the present, data_age_minutes tells how old the newest value is. " +
@@ -86,7 +90,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ series, region, resolution, from, to, unit, include_points }) =>
+    async ({ series, region, resolution: requested, from, to, unit, include_points }) =>
       guarded(async () => {
         const info = findSeries(series);
         if (!info) return errorResult(`Unknown series "${series}". Call list_series for valid keys.`);
@@ -96,7 +100,10 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
           );
         }
 
-        if (info.unit !== "MWh" && unit === "MW") {
+        const capacity = info.category === "capacity";
+        // Installed capacity exists only as one value per year.
+        const resolution = capacity ? "year" : requested;
+        if (info.unit === "EUR/MWh" && unit === "MW") {
           throw new InputError(`${info.key} is in ${info.unit}; unit MW only applies to energy series (generation, consumption, forecasts, flows).`);
         }
 
@@ -104,8 +111,13 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
         let fromMs: number;
         let toMs: number;
         try {
-          fromMs = from ? parseTime(from) : now - DEFAULT_WINDOW_MS;
-          toMs = to ? parseTime(to, true) : from ? fromMs + 2 * DEFAULT_WINDOW_MS : now + DEFAULT_WINDOW_MS;
+          if (capacity) {
+            fromMs = from ? parseTime(from) : parseTime(CAPACITY_SINCE);
+            toMs = to ? parseTime(to, true) : now;
+          } else {
+            fromMs = from ? parseTime(from) : now - DEFAULT_WINDOW_MS;
+            toMs = to ? parseTime(to, true) : from ? fromMs + 2 * DEFAULT_WINDOW_MS : now + DEFAULT_WINDOW_MS;
+          }
         } catch (err) {
           throw new InputError((err as Error).message);
         }
@@ -113,10 +125,11 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
 
         // Price series are identical for every region; always ask SMARD for DE.
         const queryRegion: Region = info.zone ? "DE" : region;
-        const raw = await client.getRange(info.filter, queryRegion, resolution, fromMs, toMs);
+        // Capacity: one tiny block per year, so a longer history is cheap.
+        const raw = await client.getRange(info.filter, queryRegion, resolution, fromMs, toMs, capacity ? { maxBlocks: 30 } : {});
         // Average power: energy divided by the real interval length (DST days have 23 or 25 hours).
         const points =
-          unit === "MW" ? raw.map((p) => ({ ...p, value: (p.value * HOUR) / (nextIntervalStart(p.timestamp, resolution) - p.timestamp) })) : raw;
+          unit === "MW" && info.unit === "MWh" ? raw.map((p) => ({ ...p, value: (p.value * HOUR) / (nextIntervalStart(p.timestamp, resolution) - p.timestamp) })) : raw;
         if (include_points && points.length > MAX_POINTS) {
           throw new InputError(
             `The range has ${points.length} values at resolution "${resolution}" (limit ${MAX_POINTS}). Use a shorter range, a coarser resolution or include_points=false.`,
@@ -140,6 +153,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
               };
 
         const notes: string[] = [];
+        if (capacity && requested !== "year" && requested !== "hour") notes.push("Installed capacity has one value per year, so resolution year was used.");
         const interval = INTERVAL_MS[resolution];
         const coveredUntil = last ? nextIntervalStart(last.timestamp, resolution) : null;
         const dataEnd = coveredUntil ?? fromMs;
@@ -151,7 +165,7 @@ export function registerSeriesTools(server: McpServer, client: SmardClient): voi
         }
 
         // Commercial exchanges are scheduled until the end of the day, so like forecasts they have no "age".
-        const measured = !info.category.startsWith("forecast") && info.category !== "price" && info.key !== "flow_commercial_net_export";
+        const measured = !info.category.startsWith("forecast") && info.category !== "price" && !capacity && info.key !== "flow_commercial_net_export";
         const reachesNow = toMs >= now - (interval ?? 0);
         const result = {
           server_time: formatBerlin(now),

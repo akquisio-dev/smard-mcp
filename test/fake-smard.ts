@@ -94,6 +94,11 @@ export function createFakeSmard(options: FakeSmardOptions) {
         return [day, s.aggregate === "mean" ? total / vals.length : total];
       });
     }
+    if (resolution === "year") {
+      // One value per year, as SMARD stores installed capacity: the hourly value at the year's start.
+      if (!years.includes(start)) return undefined;
+      return [[start, start < options.dataEnd ? s.value(start, region) : null]];
+    }
     return undefined;
   }
 
@@ -105,7 +110,7 @@ export function createFakeSmard(options: FakeSmardOptions) {
       const [, f, region, res] = index;
       const s = options.series[Number(f)];
       if (!s || (s.regions && !s.regions.includes(region!))) return new Response("", { status: 404 });
-      const timestamps = res === "day" ? years : res === "hour" || res === "quarterhour" ? weeks : undefined;
+      const timestamps = res === "day" || res === "year" ? years : res === "hour" || res === "quarterhour" ? weeks : undefined;
       if (!timestamps) return new Response("", { status: 404 });
       return Response.json({ timestamps });
     }

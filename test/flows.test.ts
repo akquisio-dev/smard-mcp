@@ -43,6 +43,8 @@ interface Result {
   peak_net_import: { time: string; gw: number } | null;
   peak_net_export: { time: string; gw: number } | null;
   notes: string[];
+  intervals_of?: string;
+  intervals?: { time: string; export_gwh: number; import_gwh: number; net_export_gwh: number }[];
 }
 
 async function flows(args: Record<string, unknown>, smard = backend()) {
@@ -120,6 +122,29 @@ describe("get_cross_border_flows", () => {
   it("notes when SMARD's net series does not match the country series", async () => {
     const { data } = await flows({ from: "2026-10-12" }, backend({ 4963: { value: () => 9_000 } }));
     expect(data.notes.join(" ")).toMatch(/net series differs from the sum of the country series/);
+  });
+
+  it("gives one neighbour's values per hour with country", async () => {
+    const { data, text } = await flows({ from: "2026-10-12", country: "fr" });
+    expect(data.intervals_of).toBe("FR");
+    expect(data.intervals).toHaveLength(24);
+    expect(data.intervals![18]).toEqual({ time: "2026-10-12T18:00:00+02:00", export_gwh: 0.1, import_gwh: 2.5, net_export_gwh: -2.4 });
+    expect(data.countries).toHaveLength(11);
+    expect(text).toMatch(/Per hour, France \(time: export, import, net export in GWh\):/);
+  });
+
+  it("gives all borders per interval on request, and none by default", async () => {
+    const all = await flows({ from: "2026-10-12", include_intervals: true });
+    expect(all.data.intervals_of).toBe("all");
+    expect(all.data.intervals![0]).toMatchObject({ export_gwh: 0.5, import_gwh: 0.3, net_export_gwh: 0.2 });
+    const none = await flows({ from: "2026-10-12" });
+    expect(none.data.intervals).toBeUndefined();
+  });
+
+  it("rejects a country without a border to the region", async () => {
+    const { res, text } = await flows({ from: "2026-10-12", region: "50Hertz", country: "FR" });
+    expect(res.isError).toBe(true);
+    expect(text).toMatch(/50Hertz has no border "FR"\. Codes: CZ, DK2, PL\./);
   });
 
   it("returns an error for periods without data", async () => {

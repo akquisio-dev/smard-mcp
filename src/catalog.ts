@@ -8,14 +8,14 @@
 
 import { BORDERS, NET_EXPORT_FILTER } from "./borders.js";
 
-export type Category = "generation" | "consumption" | "price" | "forecast_generation" | "forecast_consumption" | "cross_border";
+export type Category = "generation" | "consumption" | "price" | "forecast_generation" | "forecast_consumption" | "cross_border" | "capacity";
 
 export interface SeriesInfo {
   key: string;
   filter: number;
   category: Category;
   name: string;
-  unit: "MWh" | "EUR/MWh";
+  unit: "MWh" | "EUR/MWh" | "MW";
   /** Generation only: counts as renewable (SMARD's definition, pumped storage is not). */
   renewable?: boolean;
   /** Prices only: bidding zone. SMARD returns the same zone price for every region. */
@@ -38,6 +38,26 @@ const p = (key: string, filter: number, name: string, zone: string): SeriesInfo 
   unit: "EUR/MWh",
   zone,
 });
+
+/**
+ * Installed generation capacity per source: one value per year (MW), the
+ * value SMARD shows for that year. Keys mirror the generation keys.
+ */
+const c = (key: string, filter: number, name: string): SeriesInfo => ({ key, filter, category: "capacity", name, unit: "MW" });
+export const CAPACITY_SERIES: readonly SeriesInfo[] = [
+  c("capacity_lignite", 4072, "Installed capacity: lignite"),
+  c("capacity_nuclear", 4073, "Installed capacity: nuclear"),
+  c("capacity_wind_offshore", 4076, "Installed capacity: wind offshore"),
+  c("capacity_hydro", 3792, "Installed capacity: hydropower"),
+  c("capacity_other_conventional", 207, "Installed capacity: other conventional"),
+  c("capacity_other_renewable", 194, "Installed capacity: other renewables"),
+  c("capacity_biomass", 189, "Installed capacity: biomass"),
+  c("capacity_wind_onshore", 186, "Installed capacity: wind onshore"),
+  c("capacity_solar", 188, "Installed capacity: photovoltaics"),
+  c("capacity_hard_coal", 4075, "Installed capacity: hard coal"),
+  c("capacity_pumped_storage", 4074, "Installed capacity: pumped storage"),
+  c("capacity_natural_gas", 198, "Installed capacity: natural gas"),
+];
 
 export const SERIES: readonly SeriesInfo[] = [
   // Actual generation
@@ -97,7 +117,15 @@ export const SERIES: readonly SeriesInfo[] = [
   // (positive = net export). For TSO zones only borders to other countries.
   { key: "flow_physical_net_export", filter: NET_EXPORT_FILTER.physical, category: "cross_border", name: "Cross-border physical flow: net export", unit: "MWh" },
   { key: "flow_commercial_net_export", filter: NET_EXPORT_FILTER.commercial, category: "cross_border", name: "Cross-border commercial exchange: net export", unit: "MWh" },
+
+  // Installed capacity (one value per year)
+  ...CAPACITY_SERIES,
 ];
+
+/** Capacity key for a generation key, e.g. generation_solar -> capacity_solar. */
+export function capacityKeyOf(generationKey: string): string {
+  return generationKey.replace(/^generation_/, "capacity_");
+}
 
 export const SERIES_KEYS = SERIES.map((s) => s.key) as [string, ...string[]];
 

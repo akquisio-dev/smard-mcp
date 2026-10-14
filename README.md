@@ -97,7 +97,7 @@ up to 7 days old; the result then carries `warnings`.
 | `plan_charging`          | Charging plan between plug-in and departure (also over midnight) for a given energy (kWh) and power (kW): the cheapest, greenest or balanced quarter-hours, not necessarily contiguous, compared with charging right away, with the savings in EUR incl. VAT and optionally a retail cost.                  |
 | `find_best_hours`        | Best contiguous window of a day for appliances with a fixed run time (1 to 12 hours, hourly or 15-minute steps) by price, green share (wind + solar in % of consumption, for DE or a TSO zone) or both, the worst window for comparison and a table per interval. Defaults to tomorrow once prices are out. |
 | `get_co2_intensity`      | Estimated CO2 intensity per hour, weighted mean, cleanest and dirtiest hours, total emissions and breakdown by source. See [CO2 methodology](#co2-methodology).                                                                                                                                             |
-| `get_cross_border_flows` | Electricity exchanged with neighbouring countries: net export or import, total exports and imports, per country and the hours with the largest net import/export. Physical (measured) or commercial (scheduled trades).                                                                                     |
+| `get_cross_border_flows` | Electricity exchanged with neighbouring countries: net export or import, total exports and imports, per country and the hours with the largest net import/export. Physical (measured) or commercial (scheduled trades). With `country` (e.g. `FR`) or `include_intervals` also the values per hour or day.  |
 | `get_generation_mix`     | Generation per source in GWh and %, renewable share, consumption (grid load), average load in GW, hours covered, generation in % of consumption, measured cross-border net export, CO2 intensity. Regions: DE and the four TSO zones.                                                                       |
 | `compare_periods`        | Two periods side by side with all of the above and (DE) the mean price; differences are the change from A to B. Put the baseline, usually the older period, in A.                                                                                                                                           |
 | `analyze_prices`         | DE-LU day-ahead prices: mean, median, min/max with time and ties, negative prices, the N cheapest and most expensive intervals (or all of them for short ranges), daily means, and the mean of the 30 days before.                                                                                          |
@@ -127,7 +127,11 @@ so the four zones add up to Germany. `get_generation_mix`, `compare_periods` and
 quarter-hour that generation, consumption and the physical net export have in common; SMARD
 publishes them about 30 to 60 minutes after real time. A series more than an hour behind the others
 is left out and named in `lagging` instead of holding the snapshot back. The outlook uses the
-intraday wind and solar forecast where available, else the day-ahead forecast.
+intraday wind and solar forecast where available, else the day-ahead forecast. Each source also
+gets its installed capacity and utilization (power in % of capacity). The capacity is SMARD's value
+for the year, so capacity added since is missing and a fast-growing source like solar can look
+more utilized than it is; where the power exceeds SMARD's capacity value (it happens for single
+TSO zones), no utilization is given.
 
 `analyze_prices` works on hourly prices for up to one year, or on quarter-hour prices for up to
 8 weeks (15-minute day-ahead prices exist since 1 October 2025). Its context comparison with the
@@ -219,7 +223,8 @@ as official emission figures.
 
 Lists all available series with key, name, unit, category and (prices) bidding zone, plus regions,
 resolutions, the server version and the current server time. Optional `category` filter:
-`generation`, `consumption`, `price`, `forecast_generation`, `forecast_consumption`, `cross_border`.
+`generation`, `consumption`, `price`, `forecast_generation`, `forecast_consumption`, `cross_border`,
+`capacity`.
 
 #### `get_series`
 
@@ -238,7 +243,9 @@ Fetches the values of one series.
 Generation and consumption are energy per interval in MWh (or average power with `unit: "MW"`,
 divided by the real interval length, so DST days come out right), prices are in EUR/MWh. For
 measured series whose range reaches the present, `data_age_minutes` says how old the newest value
-is. Price series
+is. Installed capacity (`capacity_solar`, `capacity_wind_onshore` and so on, one per generation
+source) is one value in MW per year, the value SMARD shows for that year; such series always use
+resolution `year` and without `from`/`to` return all years since 2015. Price series
 belong to a bidding zone chosen by the series key and are the same for every region, so they only
 accept `DE` or `DE-LU`. With `week`, `month` or `year` a value is only returned if the period
 starts inside the range, and the running period is missing. A single call returns at most 2000

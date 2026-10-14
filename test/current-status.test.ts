@@ -33,6 +33,9 @@ function backend() {
     411: { value: () => 40_000 },
   };
   for (const f of [1225, 1226, 1227, 1228, 4069, 4070, 4071]) series[f] = actual(0, GEN_UNTIL);
+  // Installed capacity: solar 16 GW, lignite 1.5 GW (below the 2 GW generated: no utilization).
+  series[188] = { value: () => 16_000 };
+  series[4072] = { value: () => 1_500 };
   return createFakeSmard({ dataEnd: Date.parse("2026-10-20T00:00:00Z"), series });
 }
 
@@ -41,7 +44,12 @@ interface Result {
   as_of: string;
   interval_end: string;
   data_age_minutes: number;
-  generation: { total_gw: number; renewable_gw: number; renewable_share_pct: number; sources: { key: string; gw: number }[] };
+  generation: {
+    total_gw: number;
+    renewable_gw: number;
+    renewable_share_pct: number;
+    sources: { key: string; gw: number; capacity_gw: number | null; utilization_pct: number | null }[];
+  };
   consumption_gw: number;
   net_export_gw: number;
   co2_intensity_g_per_kwh: number;
@@ -105,6 +113,16 @@ describe("get_current_status", () => {
     expect(data.co2_intensity_g_per_kwh).toBe(Math.round((2 * 992) / 9));
     expect(text).toMatch(/net import 1\.0 GW/);
     expect(text).toMatch(/data 50 minutes old/);
+  });
+
+  it("puts power in relation to installed capacity, but never above 100 %", async () => {
+    const { data, text } = await status();
+    const by = (k: string) => data.generation.sources.find((s) => s.key === k)!;
+    expect(by("generation_solar")).toMatchObject({ capacity_gw: 16, utilization_pct: 25 });
+    expect(by("generation_lignite")).toMatchObject({ capacity_gw: 1.5, utilization_pct: null });
+    expect(by("generation_wind_onshore")).toMatchObject({ capacity_gw: null, utilization_pct: null });
+    expect(text).toMatch(/photovoltaics 4\.00 GW \(44\.4 %, 25\.0 % of 16\.0 GW installed\)/);
+    expect(data.notes.join(" ")).toMatch(/No utilization for generation_lignite/);
   });
 
   it("names series that lag behind instead of waiting for them", async () => {

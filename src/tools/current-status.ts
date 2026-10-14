@@ -8,10 +8,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { GENERATION_KEYS, HOUR, LOAD_KEY, NET_EXPORT_KEY } from "../analysis.js";
-import { ATTRIBUTION, findSeries, type Region } from "../catalog.js";
+import { ATTRIBUTION, capacityKeyOf, findSeries, type Region } from "../catalog.js";
 import { co2Intensity } from "../co2.js";
 import { SmardError, type DataPoint, type SmardClient } from "../smard.js";
-import { formatBerlin } from "../time.js";
+import { formatBerlin, parseTime } from "../time.js";
 import { preferIntraday, valuesByTime } from "./best-hours.js";
 import { InputError, READ_ONLY_REMOTE, commonFields, fmt1, guarded, round1, round2, toolResult } from "./common.js";
 import { MIX_REGIONS } from "./generation-mix.js";
@@ -36,6 +36,8 @@ const sourceSchema = z.object({
   renewable: z.boolean(),
   gw: z.number(),
   share_pct: z.number().describe("Share of total generation"),
+  capacity_gw: z.number().nullable().describe("Installed capacity (SMARD's value for this year)"),
+  utilization_pct: z.number().nullable().describe("Power in % of installed capacity"),
 });
 
 const outlookSchema = z.object({
@@ -94,6 +96,26 @@ async function quarterHours(client: SmardClient, key: string, region: Region, fr
     if (err instanceof SmardError && err.status === 404) return null;
     throw err;
   }
+}
+
+/**
+ * Installed capacity per generation key (MW) for the year of `now`, falling
+ * back to the previous year's value early in a year; null where SMARD has
+ * none for the region.
+ */
+export async function loadCapacity(client: SmardClient, region: Region, now: number): Promise<Map<string, number>> {
+  const year = Number(formatBerlin(now).slice(0, 4));
+  const from = parseTime(`${year - 1}-01-01`);
+  const to = parseTime(`${year + 1}-01-01`);
+  const out = new Map<string, number>();
+  await Promise.all(
+    GENERATION_KEYS.map(async (key) => {
+      const points = await valuesByTime(client, capacityKeyOf(key), region, "year", from, to);
+      const latest = [...(points ?? [])].filter(([t]) => t <= now).sort((a, b) => b[0] - a[0])[0];
+      if (latest) out.set(key, latest[1]);
+    }),
+  );
+  return out;
 }
 
 export interface Snapshot {
@@ -168,12 +190,13 @@ export function registerCurrentStatus(server: McpServer, client: SmardClient): v
         const hourStart = Math.floor(now / HOUR) * HOUR;
         const quarterStart = Math.floor(now / QUARTER) * QUARTER;
         const outlookEnd = hourStart + hours_ahead * HOUR;
-        const [quarterPrice, prices, intraday, dayAhead, load] = await Promise.all([
+        const [quarterPrice, prices, intraday, dayAhead, load, capacity] = await Promise.all([
           valuesByTime(client, "price_de_lu", "DE", "quarterhour", quarterStart, quarterStart + QUARTER),
           hours_ahead > 0 ? valuesByTime(client, "price_de_lu", "DE", "hour", hourStart, outlookEnd) : null,
           hours_ahead > 0 ? valuesByTime(client, "forecast_intraday_wind_and_solar", region, "hour", hourStart, outlookEnd) : null,
           hours_ahead > 0 ? valuesByTime(client, "forecast_generation_wind_and_solar", region, "hour", hourStart, outlookEnd) : null,
           hours_ahead > 0 ? valuesByTime(client, "forecast_consumption_total", region, "hour", hourStart, outlookEnd) : null,
+          loadCapacity(client, region, now),
         ]);
 
         // Generation
@@ -189,12 +212,16 @@ export function registerCurrentStatus(server: McpServer, client: SmardClient): v
           .filter(([, v]) => round1(gw(v)) > 0)
           .map(([key, v]) => {
             const info = findSeries(key)!;
+            const cap = capacity.get(key);
             return {
               key,
               name: info.name.replace(/^Generation: /, ""),
               renewable: info.renewable === true,
               gw: round2(gw(v)),
               share_pct: round1((100 * v) / totalMWh),
+              capacity_gw: cap === undefined ? null : round2(cap / 1000),
+              // Above 100 % SMARD's capacity value does not match the generation data; better none than a wrong one.
+              utilization_pct: cap && gw(v) * 1000 <= cap ? round1((100 * gw(v) * 1000) / cap) : null,
             };
           })
           .sort((a, b) => b.gw - a.gw);
@@ -207,6 +234,15 @@ export function registerCurrentStatus(server: McpServer, client: SmardClient): v
         if (region !== "DE") {
           notes.push("Prices are those of the DE-LU bidding zone; there are no regional prices.");
           notes.push("The net export of a TSO zone counts only its borders to other countries, not exchanges with the other German zones.");
+        }
+        const overCapacity = sources.filter((x) => x.capacity_gw !== null && x.utilization_pct === null && x.capacity_gw > 0).map((x) => x.key);
+        if (overCapacity.length > 0) {
+          notes.push(`No utilization for ${overCapacity.join(", ")}: the current power exceeds SMARD's installed capacity for ${region}.`);
+        }
+        if (capacity.size > 0) {
+          notes.push(
+            "Installed capacity is SMARD's value for the year (one value per year); capacity added since is not included, so utilization of fast-growing sources like solar can be overstated.",
+          );
         }
         for (const l of snap.lagging) {
           notes.push(`${l.key} is left out: SMARD has published it only up to ${formatBerlin(l.until)}.`);
@@ -271,7 +307,7 @@ function statusText(r: Result): string {
       `consumption ${r.consumption_gw === null ? "n/a" : fmt1(r.consumption_gw) + " GW"}; ` +
       `cross-border ${r.net_export_gw === null ? "n/a" : r.net_export_gw < 0 ? `net import ${fmt1(-r.net_export_gw)} GW` : `net export ${fmt1(r.net_export_gw)} GW`}; ` +
       `estimated CO2 ${r.co2_intensity_g_per_kwh ?? "n/a"} g/kWh.`,
-    `Sources: ${g.sources.map((s) => `${s.name} ${s.gw.toFixed(2)} GW (${fmt1(s.share_pct)} %)`).join(", ")}.`,
+    `Sources: ${g.sources.map((s) => `${s.name} ${s.gw.toFixed(2)} GW (${fmt1(s.share_pct)} %${s.utilization_pct === null ? "" : `, ${fmt1(s.utilization_pct)} % of ${fmt1(s.capacity_gw!)} GW installed`})`).join(", ")}.`,
     r.price
       ? `Day-ahead price DE-LU ${hhmm(r.price.interval_start)} to ${hhmm(r.price.interval_end)}: ${r.price.eur_mwh.toFixed(2)} EUR/MWh.`
       : "Day-ahead price of the current quarter-hour: n/a.",

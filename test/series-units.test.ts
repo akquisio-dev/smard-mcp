@@ -12,6 +12,7 @@ function backend() {
       4169: { value: () => 80, aggregate: "mean" },
       1223: { value: () => 500 },
       4629: { value: () => 300 },
+      188: { value: (t) => (t < Date.parse("2025-06-01T00:00:00Z") ? 90_000 : 100_000) }, // installed solar
     },
   });
 }
@@ -66,6 +67,27 @@ describe("get_series unit MW", () => {
     const { res, text } = await call("get_series", { series: "price_de_lu", unit: "MW" });
     expect(res.isError).toBe(true);
     expect(text).toMatch(/unit MW only applies to energy series/);
+  });
+});
+
+describe("installed capacity", () => {
+  it("returns one MW value per year whatever resolution is asked for", async () => {
+    const { text } = await call("get_series", { series: "capacity_solar", from: "2025-01-01", resolution: "quarterhour", unit: "MW" });
+    const data = JSON.parse(text) as Record<string, unknown> & { points: { time: string; value: number }[]; summary: Record<string, unknown>; notes: string[] };
+    expect(data.unit).toBe("MW");
+    expect(data.resolution).toBe("year");
+    expect(data.points).toEqual([
+      { time: "2025-01-01T00:00:00+01:00", value: 90000 },
+      { time: "2026-01-01T00:00:00+01:00", value: 100000 },
+    ]);
+    expect(data.summary).not.toHaveProperty("sum");
+    expect(data).not.toHaveProperty("data_age_minutes");
+    expect(data.notes.join(" ")).toMatch(/one value per year/);
+  });
+
+  it("lists all years since 2015 without from/to", async () => {
+    const { text } = await call("get_series", { series: "capacity_solar" });
+    expect((JSON.parse(text) as { from: string }).from).toBe("2015-01-01T00:00:00+01:00");
   });
 });
 

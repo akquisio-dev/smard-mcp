@@ -30,6 +30,15 @@ const countrySchema = z.object({
   net_export_gwh: z.number().describe("Exports minus imports; negative = net import"),
 });
 const peakSchema = z.object({ time: z.string(), gw: z.number() });
+const intervalSchema = z.object({
+  time: z.string(),
+  export_gwh: z.number(),
+  import_gwh: z.number().describe("Imports as a positive number"),
+  net_export_gwh: z.number(),
+});
+
+/** Upper bound on rows in `intervals`. */
+const MAX_INTERVALS = 2000;
 
 const outputShape = {
   ...commonFields,
@@ -42,6 +51,8 @@ const outputShape = {
   countries: z.array(countrySchema).describe("Per neighbouring country (or bidding zone), largest net flow first"),
   peak_net_import: peakSchema.nullable().describe("Hour with the largest net import (average GW, as a positive number); hourly resolution only"),
   peak_net_export: peakSchema.nullable().describe("Hour with the largest net export (average GW); hourly resolution only"),
+  intervals_of: z.string().optional().describe("What intervals refer to: a country code, or all for all borders"),
+  intervals: z.array(intervalSchema).optional().describe("Values per interval (hour or day), only on request"),
 };
 
 type Result = z.infer<z.ZodObject<typeof outputShape>>;
@@ -83,6 +94,26 @@ export function summarizeFlows(data: AlignedData, region: Region, kind: FlowKind
   return { countries, netMWh, exportsMWh, importsMWh, peakImport, peakExport, officialNetMWh: officialCovers ? sum(official) : null, hasData: net.length > 0 };
 }
 
+/** Export, import and net per timestamp for the given borders (all borders of the region by default). */
+export function flowIntervals(data: AlignedData, region: Region, kind: FlowKind, code?: string) {
+  const byTime = new Map<number, { exp: number; imp: number }>();
+  for (const b of bordersOf(region)) {
+    if (code && b.code !== code) continue;
+    for (const direction of ["export", "import"] as const) {
+      for (const p of pointsOf(data, borderSeriesKey(region, b.code, kind, direction))) {
+        const row = byTime.get(p.timestamp) ?? { exp: 0, imp: 0 };
+        if (direction === "export") row.exp += p.value;
+        else row.imp -= p.value;
+        byTime.set(p.timestamp, row);
+      }
+    }
+  }
+  const r3 = (n: number) => Math.round(n) / 1000 + 0;
+  return [...byTime]
+    .sort((a, b) => a[0] - b[0])
+    .map(([t, v]) => ({ time: formatBerlin(t), export_gwh: r3(v.exp), import_gwh: r3(v.imp), net_export_gwh: r3(v.exp - v.imp) }));
+}
+
 export function registerCrossBorderFlows(server: McpServer, client: SmardClient): void {
   server.registerTool(
     "get_cross_border_flows",
@@ -94,18 +125,28 @@ export function registerCrossBorderFlows(server: McpServer, client: SmardClient)
         "kind physical (default) = what actually flowed across the borders (measured, about 1 to 2 hours behind real time); " +
         "kind commercial = scheduled cross-border trades (available until the end of the current day). " +
         "For TSO zones only their borders to other countries count, not exchanges between the German zones. " +
-        "Hourly values up to 8 weeks, daily values above. Without from/to: yesterday.",
+        "Hourly values up to 8 weeks, daily values above. Without from/to: yesterday. " +
+        "include_intervals=true adds the values per hour (or day), for all borders or, with country, for one neighbour, e.g. 'How much power came from France each hour last week?'.",
       inputSchema: {
         from: z.string().optional().describe("Start (inclusive), YYYY-MM-DD or ISO 8601 date-time (Berlin time if no offset). Default: yesterday."),
         to: z.string().optional().describe("End (exclusive); a plain YYYY-MM-DD includes that day. Default: end of the from day."),
         region: z.enum(MIX_REGIONS).default("DE").describe("Germany or one of the four transmission system operator zones."),
         kind: z.enum(FLOW_KINDS).default("physical").describe("physical = measured flows, commercial = scheduled trades."),
+        country: z
+          .string()
+          .optional()
+          .describe("Code of one neighbour as in the countries list (e.g. FR, AT, NL; TSO zones: e.g. DK1, SE4); its values per interval."),
+        include_intervals: z.boolean().default(false).describe("Add values per interval (hour or day). Implied by country."),
       },
       outputSchema: outputShape,
       annotations: { title: "Cross-border electricity flows", ...READ_ONLY_REMOTE },
     },
-    async ({ from, to, region, kind }) =>
+    async ({ from, to, region, kind, country, include_intervals }) =>
       guarded(async () => {
+        const code = country?.trim().toUpperCase();
+        if (code && !bordersOf(region).some((b) => b.code === code)) {
+          throw new InputError(`${region} has no border "${country}". Codes: ${bordersOf(region).map((b) => b.code).join(", ")}.`);
+        }
         const range = parseRange(from, to);
         const resolution = chooseResolution(range.from, range.to);
         const data = await fetchAligned(client, flowKeys(region, kind), region, range.from, range.to, resolution);
@@ -123,6 +164,13 @@ export function registerCrossBorderFlows(server: McpServer, client: SmardClient)
         // MWh per hour = average MW; reported as GW magnitude.
         const peak = (p: DataPoint | null) => (p ? { time: formatBerlin(p.timestamp), gw: round1(Math.abs(p.value) / 1000) + 0 } : null);
         const hours = data.coveredUntil === null ? 0 : (data.coveredUntil - data.from) / 3_600_000;
+        let intervals: Result["intervals"];
+        if (code || include_intervals) {
+          const rows = flowIntervals(data, region, kind, code);
+          if (rows.length > MAX_INTERVALS) {
+            notes.push(`The ${rows.length} single values are not listed (limit ${MAX_INTERVALS}); use a shorter range.`);
+          } else intervals = rows;
+        }
         const result: Result = {
           ...metaOf(data, region),
           notes,
@@ -140,6 +188,7 @@ export function registerCrossBorderFlows(server: McpServer, client: SmardClient)
           })),
           peak_net_import: s.peakImport && s.peakImport.value < 0 ? peak(s.peakImport) : null,
           peak_net_export: s.peakExport && s.peakExport.value > 0 ? peak(s.peakExport) : null,
+          ...(intervals ? { intervals_of: code ?? "all", intervals } : {}),
         };
         return toolResult(flowsText(result), result);
       }),
@@ -155,6 +204,11 @@ function flowsText(r: Result): string {
   ];
   if (r.peak_net_import) lines.push(`Largest net import: ${fmt1(r.peak_net_import.gw)} GW at ${r.peak_net_import.time}.`);
   if (r.peak_net_export) lines.push(`Largest net export: ${fmt1(r.peak_net_export.gw)} GW at ${r.peak_net_export.time}.`);
+  if (r.intervals) {
+    const name = r.intervals_of === "all" ? "all borders" : (r.countries.find((c) => c.code === r.intervals_of)?.name ?? r.intervals_of);
+    lines.push(`Per ${r.resolution === "day" ? "day" : "hour"}, ${name} (time: export, import, net export in GWh):`);
+    for (const i of r.intervals) lines.push(`${i.time}: ${i.export_gwh}, ${i.import_gwh}, ${i.net_export_gwh}`);
+  }
   for (const n of r.notes) lines.push(`Note: ${n}`);
   lines.push(`Source: ${r.source}`);
   return lines.join("\n");

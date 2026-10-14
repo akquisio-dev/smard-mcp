@@ -3,7 +3,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { HOUR, mean } from "../analysis.js";
-import { ATTRIBUTION, findSeries, type Region } from "../catalog.js";
+import { ATTRIBUTION, findSeries, type Region, type Resolution as SeriesResolution } from "../catalog.js";
 import { SmardError, type SmardClient } from "../smard.js";
 import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../time.js";
 import { InputError, READ_ONLY_REMOTE, fmt1, guarded, round1, round2, toolResult, commonFields } from "./common.js";
@@ -97,7 +97,7 @@ function describe(run: Row[], stepMs: number): Window {
 }
 
 /** Values of one series by timestamp; null if SMARD does not offer the series for the region. */
-export async function valuesByTime(client: SmardClient, key: string, region: Region, resolution: Resolution, from: number, to: number) {
+export async function valuesByTime(client: SmardClient, key: string, region: Region, resolution: SeriesResolution, from: number, to: number) {
   const info = findSeries(key)!;
   try {
     const points = await client.getRange(info.filter, region, resolution, from, to);
