@@ -5,6 +5,25 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
+## [1.1.0] - 2026-10-14
+
+From feedback of an AI agent that used the connector.
+
+### Added
+
+- `get_current_status`: what is happening right now in one call. Power per source in GW,
+  renewable share, consumption, net export and CO2 intensity for the newest quarter-hour all
+  series share, how old it is (`data_age_minutes`), the current 15-minute price and an hourly
+  outlook. Series lagging more than an hour are named in `lagging` instead of holding the rest back.
+- `get_series`: `unit: "MW"` returns average power instead of energy per interval; `data_age_minutes`
+  for measured series whose range reaches the present.
+- `server_time` in every result.
+
+### Changed
+
+- CO2 texts say that the intensity is the average of the generation mix, not the marginal
+  emissions of additional consumption.
+
 ## [1.0.1] - 2026-10-14
 
 ### Changed
@@ -134,6 +153,7 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
+[1.1.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/akquisio-dev/smard-mcp/compare/v0.8.0...v0.9.0
