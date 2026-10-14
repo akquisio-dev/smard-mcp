@@ -5,6 +5,16 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
+## [1.3.0] - 2026-10-14
+
+### Added
+
+- Installed capacity per generation source as series `capacity_*` (MW, one value per year since 2015) in `get_series` and `list_series` (category `capacity`).
+- `get_current_status`: installed capacity and utilization per source. No utilization where the
+  power exceeds SMARD's capacity value.
+- `get_cross_border_flows`: `country` for one neighbour's values per hour (or day), and
+  `include_intervals` for all borders per interval.
+
 ## [1.2.0] - 2026-10-14
 
 ### Added
@@ -170,6 +180,7 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
+[1.3.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.0...v1.0.1
