@@ -5,6 +5,12 @@ All notable changes to this project. The format follows
 [Semantic Versioning](https://semver.org/). Before 1.0.0, minor versions may contain breaking
 changes; they are marked as such.
 
+## [Unreleased]
+
+### Security
+
+- zod 4.6.5 -> 4.6.7 (CVE-2023-54404).
+
 ## [1.3.0] - 2026-10-14
 
 ### Added
