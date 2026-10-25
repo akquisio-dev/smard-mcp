@@ -10,6 +10,7 @@ changes; they are marked as such.
 ### Security
 
 - zod 4.6.5 -> 4.6.7 (CVE-2023-54404).
+- body-parser 2.3.0 -> 2.4.0 (CVE-2026-111181), pulled in by express.
 
 ## [1.3.0] - 2026-10-14
 
