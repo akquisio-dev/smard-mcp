@@ -586,6 +586,19 @@
      }
     },
     "holdout_calibrated": false,
+    "pruefung": {
+     "rollierend_von": "2025-04",
+     "rollierend_bis": "2026-07",
+     "abstand_tage": 7,
+     "abschluss_von": "2026-08",
+     "abschluss_bis": "2026-10",
+     "abschluss_kalibriert": false,
+     "abschluss_abstand_tage": 0
+    },
+    "guete_grenzen": {
+     "high": 0.4,
+     "medium": 0.2
+    },
     "day1_vs_tso": {
      "model_mae_pct": 1.76,
      "tso_mae_pct": 1.2
@@ -780,6 +793,19 @@
      }
     },
     "holdout_calibrated": true,
+    "pruefung": {
+     "rollierend_von": "2025-04",
+     "rollierend_bis": "2026-07",
+     "abstand_tage": 7,
+     "abschluss_von": "2026-08",
+     "abschluss_bis": "2026-10",
+     "abschluss_kalibriert": true,
+     "abschluss_abstand_tage": 7
+    },
+    "guete_grenzen": {
+     "high": 0.4,
+     "medium": 0.2
+    },
     "day1_vs_tso": {
      "model_mae_pct": 2.75,
      "tso_mae_pct": 1.77
@@ -925,6 +951,19 @@
      }
     },
     "holdout_calibrated": true,
+    "pruefung": {
+     "rollierend_von": "2025-04",
+     "rollierend_bis": "2026-07",
+     "abstand_tage": 7,
+     "abschluss_von": "2026-08",
+     "abschluss_bis": "2026-10",
+     "abschluss_kalibriert": true,
+     "abschluss_abstand_tage": 7
+    },
+    "guete_grenzen": {
+     "high": 0.4,
+     "medium": 0.2
+    },
     "day1_vs_tso": {
      "model_mae_pct": 6.94,
      "tso_mae_pct": 5.36

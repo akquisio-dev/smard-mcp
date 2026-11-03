@@ -53,7 +53,7 @@ step "Keeping a copy of the running version"
 ssh "$DEPLOY_HOST" "set -e; if [ -d '$DEPLOY_DIR' ]; then rm -rf '$DEPLOY_DIR.prev'; cp -a '$DEPLOY_DIR' '$DEPLOY_DIR.prev'; fi"
 
 step "Uploading"
-rsync -a --delete --exclude node_modules dist package.json package-lock.json "$DEPLOY_HOST:$DEPLOY_DIR/"
+rsync -a --delete --exclude node_modules dist models package.json package-lock.json "$DEPLOY_HOST:$DEPLOY_DIR/"
 
 step "Installing dependencies and restarting"
 ssh "$DEPLOY_HOST" "set -e; cd '$DEPLOY_DIR'; PATH='$DEPLOY_NODE_BIN':\$PATH npm ci --omit=dev --no-fund --no-audit --loglevel=error; chown -R root:root '$DEPLOY_DIR'; systemctl restart '$DEPLOY_SERVICE'"

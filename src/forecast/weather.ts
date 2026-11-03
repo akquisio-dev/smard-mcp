@@ -128,3 +128,15 @@ export class WeatherClient {
 function sameRuns(a: ModelRun[], b: ModelRun[]): boolean {
   return a.length === b.length && a.every((r, i) => r.initMs === b[i]!.initMs);
 }
+
+let shared: WeatherClient | undefined;
+
+/**
+ * The process-wide client. The HTTP server builds a new MCP server per
+ * request; sharing the client keeps one cache, so Open-Meteo is asked about
+ * once per model run instead of once per call.
+ */
+export function sharedWeatherClient(): WeatherClient {
+  shared ??= new WeatherClient();
+  return shared;
+}

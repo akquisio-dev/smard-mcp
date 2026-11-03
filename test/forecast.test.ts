@@ -123,3 +123,28 @@ describe("describe_forecast_model", () => {
     expect(d.sources[0]!.by_lead_day).toHaveLength(6);
   });
 });
+
+describe("weather cache", () => {
+  it("fetches the forecast once for several server instances", async () => {
+    let forecasts = 0;
+    const base = weatherFetch();
+    const counting = (async (input: string | URL | Request) => {
+      if (String(input).includes("/v1/forecast")) forecasts++;
+      return base(input);
+    }) as typeof fetch;
+    const w = new WeatherClient({ fetch: counting, now: () => NOW });
+    for (let i = 0; i < 2; i++) {
+      const server = createServer(smard, w);
+      const client = new Client({ name: "t", version: "0" });
+      const [a, b] = InMemoryTransport.createLinkedPair();
+      await Promise.all([server.connect(a), client.connect(b)]);
+      await client.callTool({ name: "forecast_renewables", arguments: { sources: ["wind_offshore"] } });
+    }
+    expect(forecasts).toBe(1);
+  });
+
+  it("is shared by default", async () => {
+    const { sharedWeatherClient } = await import("../src/forecast/weather.js");
+    expect(sharedWeatherClient()).toBe(sharedWeatherClient());
+  });
+});

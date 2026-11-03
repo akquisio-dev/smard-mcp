@@ -209,6 +209,53 @@ function forecastText(r: ForecastResult): string {
   return lines.join("\n");
 }
 
+const monthText = (ym: string) => `${ym.slice(5)}/${ym.slice(0, 4)}`;
+
+/** How the accuracy figures were measured, from the model files. */
+function validationText(m: ModelBundle["meta"]): string {
+  const k = m.quellen.wind_onshore.kennzahlen;
+  const p = k.pruefung;
+  const g = k.guete_grenzen;
+  const parts = [
+    `Rolling: for each month from ${monthText(p.rollierend_von)} to ${monthText(p.rollierend_bis)} a model was trained only on data ending ${p.abstand_tage} days before that month, then tested on it; the calibration of each month was learned only from earlier months.`,
+    `Holdout: ${monthText(p.abschluss_von)} to ${monthText(p.abschluss_bis)}, used once.`,
+  ];
+  for (const s of SOURCES) {
+    const q = m.quellen[s].kennzahlen.pruefung;
+    if (!q.abschluss_kalibriert || q.abschluss_abstand_tage !== p.abstand_tage) {
+      const missing = [q.abschluss_kalibriert ? null : "calibration", q.abschluss_abstand_tage === p.abstand_tage ? null : "the gap before the test months"].filter((x) => x !== null);
+      parts.push(`For ${NAMES[s]} the holdout ran without ${missing.join(" and ")} (an earlier stage of the method); compare its holdout coverage with care.`);
+    }
+  }
+  parts.push(
+    `skill_vs_simple = 1 - MAE / MAE of the better of climatology (mean by month and hour) and persistence (same hour of the last known day). quality: high >= ${g.high}, medium >= ${g.medium}, low below, using the worse of rolling and holdout.`,
+  );
+  return parts.join(" ");
+}
+
+/** Known weaknesses; the lead days rated low come from the model files. */
+function limitations(m: ModelBundle["meta"]): string[] {
+  const low = SOURCES.map((s) => {
+    const days = Object.entries(m.quellen[s].kennzahlen.je_tag)
+      .filter(([, d]) => d.quality === "low")
+      .map(([day]) => day);
+    return days.length > 0 ? `${NAMES[s]} day ${days.join(", ")}` : null;
+  }).filter((x) => x !== null);
+  const tsoBetter = SOURCES.filter((s) => m.quellen[s].kennzahlen.day1_vs_tso.tso_mae_pct < m.quellen[s].kennzahlen.day1_vs_tso.model_mae_pct);
+  const out: string[] = [];
+  if (tsoBetter.length > 0) {
+    out.push(
+      `Day 1: the transmission system operators' own forecast is more accurate for ${tsoBetter.map((s) => NAMES[s]).join(", ")} (see day1_vs_tso); it is shown next to ours as official_forecast.`,
+    );
+  }
+  if (low.length > 0) out.push(`Rated low (skill below ${m.quellen.solar.kennzahlen.guete_grenzen.medium} against simple baselines): ${low.join("; ")}.`);
+  out.push(
+    "Germany only, no regional breakdown; curtailment and grid congestion are not modelled explicitly.",
+    "Daily sums of hourly quantiles are approximations, not true daily quantiles.",
+  );
+  return out;
+}
+
 /** The model description, generated from the model files. */
 export function describeModel(bundle: ModelBundle) {
   const m = bundle.meta;
@@ -254,16 +301,9 @@ export function describeModel(bundle: ModelBundle) {
       "Lead L = hour minus start of the weather run that covers it. The models know lead days 1 to 6 (about 24 to 150 h); in between, the forecasts of the two neighbouring lead days are blended linearly with x = (L - 3 h) / 24 h.",
     calibration:
       "Conformalized quantile regression: the p10/p90 band is widened per lead day so that about 80 % of past out-of-sample values fell inside it (calibration_widening_pct, in % of capacity).",
-    validation:
-      "Rolling: for each month from 03/2025 to 07/2026 a model was trained only on data ending 7 days before that month, then tested on it; calibration learned only from earlier months. " +
-      "Holdout: 08/2026 to 10/2026, used once. skill_vs_simple = 1 - MAE / MAE of the better of climatology (mean by month and hour) and persistence (same hour of the last known day). quality: high >= 0.4, medium >= 0.2, low < 0.2, using the worse of rolling and holdout.",
+    validation: validationText(m),
     capacity: `Installed capacity per month from Energy-Charts (Fraunhofer ISE); newer months extrapolated from the trend (solar ${m.kapazitaet.solar.trend_mw_je_monat} MW/month, wind onshore ${m.kapazitaet.wind_onshore.trend_mw_je_monat} MW/month, offshore held constant).`,
-    limitations: [
-      "Day 1: the transmission system operators' own forecast is more accurate (see day1_vs_tso); it is shown next to ours as official_forecast.",
-      "Day 6 of every source and wind offshore from day 5 on are rated low: their skill against simple baselines is below 0.2.",
-      "Germany only, no regional breakdown; curtailment and grid congestion are not modelled explicitly.",
-      "Daily sums of hourly quantiles are approximations, not true daily quantiles.",
-    ],
+    limitations: limitations(m),
     sources,
     source: `${ATTRIBUTION}; ${WEATHER_ATTRIBUTION}; code: github.com/akquisio-dev/smard-forecast`,
   };

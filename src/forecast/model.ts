@@ -30,6 +30,16 @@ export interface SourceMeta {
   kennzahlen: {
     je_tag: Record<string, DayMetrics>;
     holdout_calibrated: boolean;
+    pruefung: {
+      rollierend_von: string;
+      rollierend_bis: string;
+      abstand_tage: number;
+      abschluss_von: string;
+      abschluss_bis: string;
+      abschluss_kalibriert: boolean;
+      abschluss_abstand_tage: number;
+    };
+    guete_grenzen: { high: number; medium: number };
     day1_vs_tso: { model_mae_pct: number; tso_mae_pct: number };
   };
 }

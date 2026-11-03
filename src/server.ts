@@ -14,13 +14,13 @@ import { registerComparePeriods } from "./tools/compare-periods.js";
 import { registerGenerationMix } from "./tools/generation-mix.js";
 import { registerSeriesTools } from "./tools/series.js";
 import { registerForecast } from "./tools/forecast.js";
-import { WeatherClient } from "./forecast/weather.js";
+import { sharedWeatherClient, type WeatherClient } from "./forecast/weather.js";
 
 export { SERVER_NAME, SERVER_VERSION } from "./version.js";
 
 export { MAX_POINTS } from "./tools/series.js";
 
-export function createServer(client: SmardClient = new SmardClient(), weather: WeatherClient = new WeatherClient()): McpServer {
+export function createServer(client: SmardClient = new SmardClient(), weather: WeatherClient = sharedWeatherClient()): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
     {
@@ -41,7 +41,7 @@ export function createServer(client: SmardClient = new SmardClient(), weather: W
         "- list_series: available series keys, regions and the current server time.",
         "Answer short questions briefly with the few numbers asked for. Use a full report layout only when the user explicitly asks for an overview or a report; the prompts strom_uebersicht, wochen_bericht, monatsvergleich, region_vergleich and beste_stunden contain fixed German report templates for that.",
         "Energy is reported in GWh (get_series: MWh per interval, or MW with unit=MW; get_current_status: GW), prices in EUR/MWh. Every result carries server_time. Check complete, covered_until and notes: recent data may be incomplete.",
-        "Analysis tools return an error for periods without any data (e.g. the future); use get_series with forecast_* series or price_de_lu for those.",
+        "Analysis tools return an error for periods without any data (e.g. the future); use forecast_renewables for solar and wind, or get_series with forecast_* series or price_de_lu, for those.",
         "If a result contains warnings (e.g. data served from the cache because SMARD did not answer), mention them.",
         `Cite the source as "${ATTRIBUTION}" when presenting the data.`,
       ].join("\n"),
