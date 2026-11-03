@@ -25,6 +25,9 @@ export function solarElevation(ms: number, lat: number, lon: number): number {
     0.000907 * Math.sin(2 * g) -
     0.002697 * Math.cos(3 * g) +
     0.00148 * Math.sin(3 * g);
+  // 0.000075 is the constant as printed by Spencer (1971); his later correction gives
+  // 0.0000075 (under one second). Kept until the next retraining so that this matches the
+  // Python code the models were trained with (smard-forecast sf/sonne.py).
   const eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
   const w = (((hour * 60 + eqTime + 4 * lon) / 4 - 180) * Math.PI) / 180;
   const phi = (lat * Math.PI) / 180;
