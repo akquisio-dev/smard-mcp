@@ -4,8 +4,9 @@
  * meta.json of the three ICON models tells when each run started; the lead
  * time of an hour is counted from the run of the model that covers it
  * (ICON-D2 first, then ICON-EU, then ICON global), as in the training data.
- * If Open-Meteo fails, the last forecast is served with a warning up to
- * 12 hours old; after that the call fails.
+ * Failed requests (no answer, timeout, HTTP 5xx or 429) are retried twice,
+ * after 2 and 5 seconds. If Open-Meteo still fails, the last forecast is
+ * served with a warning up to 12 hours old; after that the call fails.
  */
 
 import { warn } from "../context.js";
@@ -36,7 +37,17 @@ export interface WeatherClientOptions {
   timeoutMs?: number;
   metaTtlMs?: number;
   now?: () => number;
+  /** Pauses before the retries of a failed request (default 2 s, 5 s). */
+  retryDelaysMs?: readonly number[];
 }
+
+/** Worth retrying: no answer, timeout, server errors, rate limiting. */
+function isTransient(err: unknown): boolean {
+  if (!(err instanceof SmardError)) return false;
+  return err.status === undefined || err.status >= 500 || err.status === 429;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Start of the run (ms) of the model that covers the given hour. */
 export function runStartFor(runs: ModelRun[], hourStart: number): number {
@@ -49,24 +60,47 @@ export class WeatherClient {
   private readonly timeoutMs: number;
   private readonly metaTtlMs: number;
   private readonly now: () => number;
+  private readonly retryDelaysMs: readonly number[];
   private meta?: { at: number; runs: ModelRun[] };
   private forecast?: WeatherForecast;
   private pending?: Promise<WeatherForecast>;
 
   constructor(options: WeatherClientOptions = {}) {
     this.fetchImpl = options.fetch ?? globalThis.fetch;
-    this.timeoutMs = options.timeoutMs ?? 30_000;
+    this.timeoutMs = options.timeoutMs ?? 15_000; // a normal answer takes under a second; 3 attempts stay below a minute
     this.metaTtlMs = options.metaTtlMs ?? 10 * 60_000;
     this.now = options.now ?? Date.now;
+    this.retryDelaysMs = options.retryDelaysMs ?? [2_000, 5_000];
   }
 
   private async getJson(url: string): Promise<unknown> {
-    const res = await this.fetchImpl(url, {
-      signal: AbortSignal.timeout(this.timeoutMs),
-      headers: { "User-Agent": "smard-mcp (+https://github.com/akquisio-dev/smard-mcp)" },
-    });
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.getJsonOnce(url);
+      } catch (err) {
+        const delay = this.retryDelaysMs[attempt];
+        if (delay === undefined || !isTransient(err)) throw err;
+        await sleep(delay);
+      }
+    }
+  }
+
+  private async getJsonOnce(url: string): Promise<unknown> {
+    let res: Response;
+    try {
+      res = await this.fetchImpl(url, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+        headers: { "User-Agent": "smard-mcp (+https://github.com/akquisio-dev/smard-mcp)" },
+      });
+    } catch (err) {
+      throw new SmardError(`Open-Meteo is not reachable: ${err instanceof Error ? err.message : String(err)}`);
+    }
     if (!res.ok) throw new SmardError(`Open-Meteo answered HTTP ${res.status}`, res.status);
-    return res.json();
+    try {
+      return await res.json();
+    } catch {
+      throw new SmardError("Open-Meteo returned an invalid answer");
+    }
   }
 
   private async runs(): Promise<ModelRun[]> {

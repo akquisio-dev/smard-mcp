@@ -7,6 +7,14 @@ changes; they are marked as such.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-03
+
+### Fixed
+
+- `forecast_renewables` retries failed Open-Meteo requests (no answer, timeout, HTTP 5xx or
+  429) twice, after 2 and 5 seconds, with a 15-second timeout per attempt. Before, a single
+  HTTP 503 right after a restart, when no cached forecast exists yet, made the call fail.
+
 ## [1.4.0] - 2026-11-03
 
 Deployed to the hosted endpoint; the npm release follows after two to four weeks of monitoring
@@ -218,7 +226,8 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
-[Unreleased]: https://github.com/akquisio-dev/smard-mcp/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/akquisio-dev/smard-mcp/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/akquisio-dev/smard-mcp/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.1.0...v1.2.0

@@ -19,13 +19,13 @@ const d2 = fx.laeufe[0]!;
 const NOW = d2.init * 1000 + 5.5 * HOUR;
 
 /** Open-Meteo imitation: meta.json per model and the forecast answer of the fixture. */
-function weatherFetch(failForecast = { on: false }) {
+function weatherFetch(failForecast: { on: boolean; times?: number } = { on: false }) {
   return (async (input: string | URL | Request) => {
     const url = String(input);
     const meta = fx.laeufe.find((l) => url.includes(`/data/${l.model}/`));
     if (meta) return Response.json({ last_run_initialisation_time: meta.init, data_end_time: meta.ende });
     if (url.includes("/v1/forecast")) {
-      if (failForecast.on) return new Response("down", { status: 503 });
+      if (failForecast.on && (failForecast.times === undefined || failForecast.times-- > 0)) return new Response("down", { status: 503 });
       return Response.json(fx.antwort);
     }
     return new Response("not found", { status: 404 });
@@ -90,7 +90,7 @@ describe("forecast_renewables", () => {
   it("serves the last forecast with a warning when Open-Meteo fails", async () => {
     let t = NOW;
     const fail = { on: false };
-    const w = new WeatherClient({ fetch: weatherFetch(fail), now: () => t, metaTtlMs: 0 });
+    const w = new WeatherClient({ fetch: weatherFetch(fail), now: () => t, metaTtlMs: 0, retryDelaysMs: [0, 0] });
     const server = createServer(smard, w);
     const client = new Client({ name: "t", version: "0" });
     const [a, b] = InMemoryTransport.createLinkedPair();
@@ -105,6 +105,35 @@ describe("forecast_renewables", () => {
     expect(res.isError).toBeFalsy();
     expect(textOf(res)).toMatch(/Warning: Open-Meteo did not answer/);
     expect(textOf(res)).toMatch(/^Notice: These values are estimates/);
+  });
+});
+
+describe("weather retries", () => {
+  it("retries a failed request, so a fresh server without cache still answers", async () => {
+    let calls = 0;
+    const base = weatherFetch({ on: true, times: 2 });
+    const counting = (async (input: string | URL | Request) => {
+      if (String(input).includes("/v1/forecast")) calls++;
+      return base(input);
+    }) as typeof fetch;
+    const w = new WeatherClient({ fetch: counting, now: () => NOW, retryDelaysMs: [0, 0] });
+    const res = await runForecast(smard, w, { sources: ["wind_offshore"] }, NOW);
+    expect(calls).toBe(3);
+    expect(res.sources[0]!.intervals.length).toBeGreaterThan(0);
+  });
+
+  it("gives up after the retries and does not retry client errors", async () => {
+    const fail = { on: true };
+    const w = new WeatherClient({ fetch: weatherFetch(fail), now: () => NOW, retryDelaysMs: [0, 0] });
+    await expect(runForecast(smard, w, { sources: ["solar"] }, NOW)).rejects.toThrow(/HTTP 503/);
+    let calls = 0;
+    const bad = (async () => {
+      calls++;
+      return new Response("bad", { status: 400 });
+    }) as typeof fetch;
+    const w2 = new WeatherClient({ fetch: bad, now: () => NOW, retryDelaysMs: [0, 0] });
+    await expect(runForecast(smard, w2, { sources: ["solar"] }, NOW)).rejects.toThrow(/HTTP 400/);
+    expect(calls).toBe(3); // one meta.json request per ICON model, none repeated
   });
 });
 
