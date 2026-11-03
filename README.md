@@ -5,7 +5,9 @@ An [MCP](https://modelcontextprotocol.io) server for German electricity market d
 
 It lets AI assistants answer questions about electricity generation by source, consumption,
 day-ahead prices, cross-border flows, forecasts and estimated CO2 intensity, and find the cheapest
-or greenest hours of a day, without having to know SMARD's internal ids or block layout.
+or greenest hours of a day, without having to know SMARD's internal ids or block layout. For
+solar and wind it also offers its own model forecast up to 6 days ahead, with an uncertainty
+band (see [Forecast](#forecast)).
 
 ## Hosted endpoint
 
@@ -75,6 +77,7 @@ PORT=8450 npm start   # serves http://127.0.0.1:8450/mcp and /health
 - "Compare the generation mix of October 2025 and October 2026."
 - "How many hours with negative prices were there in the last 12 months, and when was power cheapest?"
 - "Show the wind onshore forecast for tomorrow."
+- "How much wind and solar power will Germany have this weekend, and how certain is that?"
 - "How much electricity did Germany import yesterday, and from which countries?"
 
 ## Tools
@@ -158,6 +161,26 @@ each to the range 0 to 1 over the intervals of the day, where the cheapest and t
 get 1, and weighs both equally. `region` only changes the green share; the price is always that of
 the DE-LU bidding zone. Its prices are wholesale day-ahead prices without taxes, levies and grid
 fees, so for households they matter directly only with a dynamic tariff.
+
+### Forecast
+
+| Tool                      | Purpose                                                                                                                                                                                                                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `forecast_renewables`     | Our own model forecast of solar, wind onshore and wind offshore generation in Germany for the coming hours up to 6 days: p50 with a p10 to p90 band per hour or day, the official TSO day-ahead forecast next to it where published, the lead day and a quality level (high, medium, low) per interval. |
+| `describe_forecast_model` | Short technical description of that model: data, features, method, lead time, calibration, validation, error per source and lead day, measured accuracy in operation and known limitations.                                                                                                           |
+
+The forecast is **not** SMARD data. It comes from
+[smard-forecast](https://github.com/akquisio-dev/smard-forecast): LightGBM quantile models trained
+on archived DWD ICON weather forecasts (via Open-Meteo) for 40 places against SMARD's measured
+generation, with a conformal calibration of the band. The trees are shipped as JSON in `models/`
+and evaluated in TypeScript, without further dependencies. Every result carries `model_notice`
+(the values are model estimates, not measurements and not an official forecast), and `quality`
+per interval follows the measured skill of the model for that source and lead day; for wind
+offshore on days 5 and 6 it is low. The weather forecast is fetched once for all places and cached
+in memory until a newer ICON run is available; if Open-Meteo does not answer, the last forecast is
+used with a warning for up to 12 hours. A daily job compares the archived forecasts with SMARD's
+measurements once published; the result appears as `recent_accuracy`. New models are trained
+monthly and reviewed before they are released.
 
 ### Prompts
 
@@ -273,10 +296,13 @@ What happens when you use the hosted endpoint `https://energie.akquisio.eu/mcp`:
   contain only the series, region, resolution and time block, nothing about you. The fetched SMARD
   data is cached in memory (fresh for up to 24 hours, kept up to 7 days as a fallback when SMARD
   does not answer).
+- **Open-Meteo:** `forecast_renewables` fetches weather forecasts for 40 fixed places in Germany
+  from api.open-meteo.com. The request contains only these coordinates and weather variables,
+  nothing about you; the answer is cached in memory and shared by all users.
 - No cookies, no accounts, no analytics, no data is passed on to anyone else.
 
 If you prefer, run the server yourself (see [Run locally](#run-locally)); with stdio nothing leaves
-your machine except the requests to smard.de. Questions: please open a
+your machine except the requests to smard.de (and api.open-meteo.com for the forecast). Questions: please open a
 [GitHub issue](https://github.com/akquisio-dev/smard-mcp/issues).
 
 ## Operations
@@ -288,6 +314,8 @@ your machine except the requests to smard.de. Questions: please open a
   configuration; with `SMOKE_ENDPOINT` it also checks a running server (health, MCP handshake,
   tools, one call). A GitHub Action runs it daily against `energie.akquisio.eu`, because SMARD's
   API is unofficial and may change.
+- `dist/monitor.js` (daily, `deploy/forecast-monitor.*`) measures the accuracy of
+  `forecast_renewables` in operation, see [deploy/README-forecast.md](deploy/README-forecast.md).
 - Dependabot keeps npm packages and GitHub Actions up to date (weekly).
 - `npm run deploy` deploys the current, pushed commit to a server set up like `deploy/` describes
   (settings in `deploy/deploy.env`, see `deploy/deploy.env.example`). It runs typecheck, lint,
@@ -300,6 +328,12 @@ Data: **Bundesnetzagentur | SMARD.de**, licensed under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Please keep this attribution when
 you publish data obtained through this server. This project is not affiliated with the
 Bundesnetzagentur.
+
+`forecast_renewables` additionally uses weather data from
+[Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0), based on the ICON models of the Deutscher
+Wetterdienst, and monthly installed capacity from [Energy-Charts.info](https://energy-charts.info/)
+(Fraunhofer ISE, CC BY 4.0). Its values are model estimates of this project, not data of the
+Bundesnetzagentur, the DWD or Fraunhofer ISE.
 
 The code in this repository is licensed under the [MIT License](LICENSE).
 

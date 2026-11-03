@@ -16,7 +16,9 @@ const CONFIG_URL = "https://www.smard.de/app/chart_configuration/market_data_con
 const EXPECTED_TOOLS = [
   "analyze_prices",
   "compare_periods",
+  "describe_forecast_model",
   "find_best_hours",
+  "forecast_renewables",
   "get_co2_intensity",
   "get_cross_border_flows",
   "get_current_status",
@@ -73,6 +75,11 @@ async function checkEndpoint(base: string): Promise<string[]> {
     if (missing.length > 0) problems.push(`tools missing: ${missing.join(", ")}`);
     const res = await client.callTool({ name: "get_generation_mix", arguments: {} });
     if (res.isError) problems.push(`get_generation_mix failed: ${JSON.stringify(res.content).slice(0, 200)}`);
+    // the forecast also depends on Open-Meteo; a stale weather forecast shows up as a warning
+    const fc = await client.callTool({ name: "forecast_renewables", arguments: {} });
+    const fcData = fc.structuredContent as { warnings?: string[] } | undefined;
+    if (fc.isError) problems.push(`forecast_renewables failed: ${JSON.stringify(fc.content).slice(0, 200)}`);
+    else if (fcData?.warnings?.length) problems.push(`forecast_renewables warns: ${fcData.warnings.join("; ")}`);
   } finally {
     await client.close().catch(() => undefined);
   }

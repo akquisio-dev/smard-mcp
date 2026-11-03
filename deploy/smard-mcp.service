@@ -18,7 +18,7 @@ ExecStart=/opt/node-22/bin/node dist/http.js
 Restart=on-failure
 RestartSec=5
 
-# Hardening: the server only needs outbound HTTPS to smard.de.
+# Hardening: the server only needs outbound HTTPS (smard.de, api.open-meteo.com).
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

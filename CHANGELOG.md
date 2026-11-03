@@ -7,7 +7,12 @@ changes; they are marked as such.
 
 ## [Unreleased]
 
-### Added (branch forecast, not released)
+## [1.4.0] - 2026-11-03
+
+Deployed to the hosted endpoint; the npm release follows after two to four weeks of monitoring
+in operation.
+
+### Added
 
 - `forecast_renewables`: our own model forecast of solar, wind onshore and wind offshore for
   Germany up to 6 days ahead (p10/p50/p90 per hour or day, official TSO day-ahead forecast next
@@ -20,6 +25,14 @@ changes; they are marked as such.
 - Monitoring in operation: `dist/monitor.js` (daily timer, `deploy/forecast-monitor.*`)
   recomputes the archived forecasts with the shipped models and compares them with SMARD;
   `forecast_renewables` and `describe_forecast_model` show the result as `recent_accuracy`.
+- `npm run smoke` against an endpoint also calls `forecast_renewables` (Open-Meteo reachable,
+  weather forecast fresh).
+
+### Changed
+
+- Models 2026.11.02 (monthly retraining, validated through October 2026).
+- Day values of `forecast_renewables` say in the text when a day is only partly covered.
+- Source of `forecast_renewables` names Energy-Charts.info (installed capacity, CC BY 4.0).
 
 ### Fixed
 
@@ -205,6 +218,8 @@ input).
 
 - First version with `list_series` and `get_series`, stdio and Streamable HTTP.
 
+[Unreleased]: https://github.com/akquisio-dev/smard-mcp/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/akquisio-dev/smard-mcp/compare/v1.0.1...v1.1.0

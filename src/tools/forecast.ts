@@ -18,7 +18,7 @@ import { berlinDayFloor, formatBerlin, nextIntervalStart, parseTime } from "../t
 import { InputError, READ_ONLY_REMOTE, commonFields, fmt1, guarded, round2, toolResult } from "./common.js";
 
 const HOUR = 3_600_000;
-export const WEATHER_ATTRIBUTION = "Weather data: Open-Meteo.com (CC BY 4.0), models of the DWD";
+export const WEATHER_ATTRIBUTION = "Weather data: Open-Meteo.com (CC BY 4.0), models of the DWD; installed capacity: Energy-Charts.info (CC BY 4.0)";
 
 export const MODEL_NOTICE =
   "These values are estimates of a statistical model (smard-forecast: machine learning on DWD ICON weather forecasts), " +
@@ -237,7 +237,9 @@ function forecastText(r: ForecastResult): string {
     for (const i of s.intervals) {
       const v = "gw" in i ? bandText(i.gw, "GW") : bandText(i.gwh, "GWh");
       const off = i.official_forecast === null ? "" : `, official ${fmt1(i.official_forecast)}`;
-      lines.push(`- ${i.start}: ${v}${off}, lead day ${i.lead_days}, quality ${i.quality}`);
+      const full = (Date.parse(i.end) - Date.parse(i.start)) / HOUR;
+      const part = i.hours < full ? `, only ${i.hours} of ${full} hours` : "";
+      lines.push(`- ${i.start}: ${v}${off}${part}, lead day ${i.lead_days}, quality ${i.quality}`);
     }
   }
   for (const n of r.notes) lines.push(`Note: ${n}`);
