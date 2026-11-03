@@ -1,0 +1,11 @@
+[Unit]
+Description=smard-mcp: daily monitoring of forecast_renewables
+
+[Timer]
+# SMARD has the previous day by early morning
+OnCalendar=*-*-* 05:20:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

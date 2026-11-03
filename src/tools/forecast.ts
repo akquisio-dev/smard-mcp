@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ATTRIBUTION, findSeries } from "../catalog.js";
 import { warn } from "../context.js";
 import { loadModels, SOURCES, type ModelBundle, type Source } from "../forecast/model.js";
+import { readMonitorReport, type MonitorReport } from "../forecast/monitor.js";
 import { currentForecast, worse, type HourForecast, type Quality } from "../forecast/run.js";
 import type { WeatherClient } from "../forecast/weather.js";
 import type { SmardClient } from "../smard.js";
@@ -46,8 +47,40 @@ const intervalSchema = z.object({
   quality: z.enum(["high", "medium", "low"]).describe("Measured skill at this lead time: high >= 0.4, medium >= 0.2, low < 0.2 (see describe_forecast_model)"),
 });
 
+/** Monitoring in operation: only lead days with at least a day of comparable hours. */
+const MIN_MONITOR_HOURS = 24;
+
+const recentSchema = z
+  .object({
+    window_days: z.number(),
+    forecasts: z.number().describe("Archived forecasts compared with SMARD's measurements"),
+    created: z.string(),
+    sources: z.record(
+      z.string(),
+      z.array(
+        z.object({
+          lead_day: z.number(),
+          hours: z.number(),
+          mae_gw: z.number().nullable(),
+          mae_pct_of_capacity: z.number().nullable(),
+          coverage_p10_p90_pct: z.number().nullable(),
+        }),
+      ),
+    ),
+  })
+  .nullable()
+  .describe("Measured accuracy in operation over the last days (null until monitoring has data); lead days with fewer than 24 comparable hours are left out");
+
+function recentAccuracy(report: MonitorReport | null, sources: readonly Source[]) {
+  if (!report) return null;
+  const out: Record<string, MonitorReport["sources"][Source]> = {};
+  for (const s of sources) out[s] = report.sources[s].filter((d) => d.hours >= MIN_MONITOR_HOURS);
+  return { window_days: report.window_days, forecasts: report.forecasts, created: report.created, sources: out };
+}
+
 const outputShape = {
   ...commonFields,
+  recent_accuracy: recentSchema,
   model_notice: z.string().describe("Always pass this on: the values are model estimates"),
   model_version: z.string(),
   trained_until: z.string(),
@@ -171,6 +204,8 @@ export async function runForecast(client: SmardClient, weather: WeatherClient, a
   if (anyLow) notes.push('Intervals with quality "low" are barely better than a simple seasonal average; treat them as a rough indication.');
   if (anyEstimated) notes.push("The installed capacity for this month is extrapolated from the trend; the forecast in GW scales with it.");
   notes.push("Solar is 0 at night. Germany as a whole; no regional breakdown.");
+  const recent = recentAccuracy(readMonitorReport(), sources);
+  if (!recent) notes.push("Accuracy in operation is not yet available; see describe_forecast_model for the validation results.");
   const coveredUntil = end > from ? formatBerlin(end) : null;
   return {
     model_notice: MODEL_NOTICE,
@@ -183,6 +218,7 @@ export async function runForecast(client: SmardClient, weather: WeatherClient, a
     covered_until: coveredUntil,
     complete: to <= run.endExclusive,
     sources: out,
+    recent_accuracy: recent,
     notes,
     source: `${ATTRIBUTION}; ${WEATHER_ATTRIBUTION}; model: smard-forecast ${bundle.meta.version}`,
   };
@@ -304,6 +340,7 @@ export function describeModel(bundle: ModelBundle) {
     validation: validationText(m),
     capacity: `Installed capacity per month from Energy-Charts (Fraunhofer ISE); newer months extrapolated from the trend (solar ${m.kapazitaet.solar.trend_mw_je_monat} MW/month, wind onshore ${m.kapazitaet.wind_onshore.trend_mw_je_monat} MW/month, offshore held constant).`,
     limitations: limitations(m),
+    recent_accuracy: recentAccuracy(readMonitorReport(), SOURCES),
     sources,
     source: `${ATTRIBUTION}; ${WEATHER_ATTRIBUTION}; code: github.com/akquisio-dev/smard-forecast`,
   };
@@ -331,6 +368,14 @@ function describeText(d: ReturnType<typeof describeModel>): string {
       );
     }
     lines.push(`- day 1 against the TSO forecast: ours ${s.day1_vs_tso.model_mae_pct_of_capacity} %, TSO ${s.day1_vs_tso.tso_mae_pct_of_capacity} %`);
+  }
+  if (d.recent_accuracy) {
+    lines.push(`Accuracy in operation (last ${d.recent_accuracy.window_days} days, ${d.recent_accuracy.forecasts} archived forecasts compared with SMARD):`);
+    for (const [src, days] of Object.entries(d.recent_accuracy.sources)) {
+      for (const r of days) lines.push(`- ${NAMES[src as Source]} day ${r.lead_day}: MAE ${r.mae_gw} GW (${r.mae_pct_of_capacity} %), coverage ${r.coverage_p10_p90_pct} %, ${r.hours} hours`);
+    }
+  } else {
+    lines.push("Accuracy in operation: monitoring has no data yet.");
   }
   lines.push("Limitations:");
   for (const l of d.limitations) lines.push(`- ${l}`);

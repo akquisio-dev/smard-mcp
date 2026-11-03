@@ -17,6 +17,13 @@ changes; they are marked as such.
   (DWD ICON), one request for all places, cached until a newer model run.
 - `describe_forecast_model`: short technical description of that model with its measured
   accuracy per source and lead day, generated from the model files.
+- Monitoring in operation: `dist/monitor.js` (daily timer, `deploy/forecast-monitor.*`)
+  recomputes the archived forecasts with the shipped models and compares them with SMARD;
+  `forecast_renewables` and `describe_forecast_model` show the result as `recent_accuracy`.
+
+### Fixed
+
+- A `compare_periods` test assumed that 1 November 2026 lies in the future.
 
 ### Security
 

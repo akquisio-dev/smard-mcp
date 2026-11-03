@@ -1,0 +1,26 @@
+# Daily monitoring of forecast_renewables (src/monitor.ts). Reads the smard-forecast archive
+# (group smard-forecast, read only) and writes /var/lib/smard-mcp/forecast-monitor.json,
+# which the smard-mcp service reads. Install: see deploy/README-forecast.md.
+[Unit]
+Description=smard-mcp: accuracy of forecast_renewables in operation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=smard-mcp
+Group=smard-mcp
+SupplementaryGroups=smard-forecast
+WorkingDirectory=/opt/smard-mcp
+Environment=SMARD_FORECAST_ARCHIVE=/var/lib/smard-forecast/archiv
+Environment=SMARD_MCP_FORECAST_MONITOR=/var/lib/smard-mcp/forecast-monitor.json
+ExecStart=/opt/node-22/bin/node /opt/smard-mcp/dist/monitor.js
+StateDirectory=smard-mcp
+StateDirectoryMode=0755
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+MemoryMax=1G
+TimeoutStartSec=30min
