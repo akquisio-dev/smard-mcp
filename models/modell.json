@@ -515,29 +515,29 @@
     "vorlauf_tag"
    ],
    "cqr": {
-    "1": 0.002086564825850137,
-    "2": 0.0030819852232649584,
-    "3": 0.002637222745026739,
-    "4": 0.0023108821122530205,
-    "5": 0.0021209171001901517,
-    "6": 0.005427601864838621
+    "1": 0.00224573444188674,
+    "2": 0.0030737836283810625,
+    "3": 0.0026752639199596525,
+    "4": 0.0021627865328307013,
+    "5": 0.0021842332608843717,
+    "6": 0.004988368199916053
    },
    "kennzahlen": {
     "je_tag": {
      "1": {
-      "mae_pct_of_capacity": 1.76,
-      "mae_gw": 1.87,
-      "coverage_p10_p90_pct": 85.9,
-      "skill_vs_simple": 0.57,
+      "mae_pct_of_capacity": 1.73,
+      "mae_gw": 1.86,
+      "coverage_p10_p90_pct": 85.5,
+      "skill_vs_simple": 0.58,
       "holdout_mae_pct_of_capacity": 1.5,
       "holdout_coverage_p10_p90_pct": 77.7,
       "holdout_skill_vs_simple": 0.64,
       "quality": "high"
      },
      "2": {
-      "mae_pct_of_capacity": 1.95,
+      "mae_pct_of_capacity": 1.92,
       "mae_gw": 2.07,
-      "coverage_p10_p90_pct": 85.5,
+      "coverage_p10_p90_pct": 84.7,
       "skill_vs_simple": 0.53,
       "holdout_mae_pct_of_capacity": 1.75,
       "holdout_coverage_p10_p90_pct": 76.4,
@@ -545,29 +545,29 @@
       "quality": "high"
      },
      "3": {
-      "mae_pct_of_capacity": 2.13,
-      "mae_gw": 2.26,
-      "coverage_p10_p90_pct": 85.6,
-      "skill_vs_simple": 0.48,
+      "mae_pct_of_capacity": 2.12,
+      "mae_gw": 2.29,
+      "coverage_p10_p90_pct": 85.0,
+      "skill_vs_simple": 0.49,
       "holdout_mae_pct_of_capacity": 2.03,
       "holdout_coverage_p10_p90_pct": 75.2,
       "holdout_skill_vs_simple": 0.51,
       "quality": "high"
      },
      "4": {
-      "mae_pct_of_capacity": 2.38,
-      "mae_gw": 2.53,
-      "coverage_p10_p90_pct": 85.2,
-      "skill_vs_simple": 0.42,
+      "mae_pct_of_capacity": 2.37,
+      "mae_gw": 2.56,
+      "coverage_p10_p90_pct": 84.7,
+      "skill_vs_simple": 0.43,
       "holdout_mae_pct_of_capacity": 2.3,
       "holdout_coverage_p10_p90_pct": 75.5,
       "holdout_skill_vs_simple": 0.45,
       "quality": "high"
      },
      "5": {
-      "mae_pct_of_capacity": 2.79,
-      "mae_gw": 2.96,
-      "coverage_p10_p90_pct": 84.7,
+      "mae_pct_of_capacity": 2.81,
+      "mae_gw": 3.04,
+      "coverage_p10_p90_pct": 84.6,
       "skill_vs_simple": 0.32,
       "holdout_mae_pct_of_capacity": 2.83,
       "holdout_coverage_p10_p90_pct": 76.1,
@@ -575,10 +575,10 @@
       "quality": "medium"
      },
      "6": {
-      "mae_pct_of_capacity": 3.25,
-      "mae_gw": 3.47,
-      "coverage_p10_p90_pct": 83.7,
-      "skill_vs_simple": 0.21,
+      "mae_pct_of_capacity": 3.28,
+      "mae_gw": 3.56,
+      "coverage_p10_p90_pct": 83.1,
+      "skill_vs_simple": 0.2,
       "holdout_mae_pct_of_capacity": 3.37,
       "holdout_coverage_p10_p90_pct": 69.0,
       "holdout_skill_vs_simple": 0.19,
@@ -588,7 +588,7 @@
     "holdout_calibrated": false,
     "pruefung": {
      "rollierend_von": "2025-04",
-     "rollierend_bis": "2026-07",
+     "rollierend_bis": "2026-10",
      "abstand_tage": 7,
      "abschluss_von": "2026-08",
      "abschluss_bis": "2026-10",
@@ -600,8 +600,8 @@
      "medium": 0.2
     },
     "day1_vs_tso": {
-     "model_mae_pct": 1.76,
-     "tso_mae_pct": 1.2
+     "model_mae_pct": 1.73,
+     "tso_mae_pct": 1.17
     }
    }
   },
@@ -722,70 +722,70 @@
     "vorlauf_tag"
    ],
    "cqr": {
-    "1": 0.005310940825681514,
-    "2": 0.005373993928392105,
-    "3": 0.007153021928044365,
-    "4": 0.009104123848018762,
-    "5": 0.008854980757734122,
-    "6": 0.014103345110806971
+    "1": 0.005967776584592797,
+    "2": 0.005921469031852479,
+    "3": 0.007853102298615598,
+    "4": 0.009930603335010883,
+    "5": 0.00967779833455213,
+    "6": 0.01593780793194445
    },
    "kennzahlen": {
     "je_tag": {
      "1": {
-      "mae_pct_of_capacity": 2.75,
-      "mae_gw": 1.86,
-      "coverage_p10_p90_pct": 82.6,
-      "skill_vs_simple": 0.72,
+      "mae_pct_of_capacity": 2.72,
+      "mae_gw": 1.85,
+      "coverage_p10_p90_pct": 82.4,
+      "skill_vs_simple": 0.73,
       "holdout_mae_pct_of_capacity": 2.57,
       "holdout_coverage_p10_p90_pct": 81.1,
       "holdout_skill_vs_simple": 0.77,
       "quality": "high"
      },
      "2": {
-      "mae_pct_of_capacity": 3.46,
-      "mae_gw": 2.34,
-      "coverage_p10_p90_pct": 81.9,
-      "skill_vs_simple": 0.65,
+      "mae_pct_of_capacity": 3.41,
+      "mae_gw": 2.33,
+      "coverage_p10_p90_pct": 81.6,
+      "skill_vs_simple": 0.66,
       "holdout_mae_pct_of_capacity": 3.17,
       "holdout_coverage_p10_p90_pct": 80.3,
       "holdout_skill_vs_simple": 0.71,
       "quality": "high"
      },
      "3": {
-      "mae_pct_of_capacity": 4.28,
-      "mae_gw": 2.89,
-      "coverage_p10_p90_pct": 82.5,
-      "skill_vs_simple": 0.57,
+      "mae_pct_of_capacity": 4.22,
+      "mae_gw": 2.87,
+      "coverage_p10_p90_pct": 82.1,
+      "skill_vs_simple": 0.58,
       "holdout_mae_pct_of_capacity": 3.9,
       "holdout_coverage_p10_p90_pct": 79.5,
       "holdout_skill_vs_simple": 0.64,
       "quality": "high"
      },
      "4": {
-      "mae_pct_of_capacity": 5.59,
-      "mae_gw": 3.78,
-      "coverage_p10_p90_pct": 81.6,
-      "skill_vs_simple": 0.44,
+      "mae_pct_of_capacity": 5.51,
+      "mae_gw": 3.76,
+      "coverage_p10_p90_pct": 81.9,
+      "skill_vs_simple": 0.46,
       "holdout_mae_pct_of_capacity": 5.08,
       "holdout_coverage_p10_p90_pct": 83.8,
       "holdout_skill_vs_simple": 0.54,
       "quality": "high"
      },
      "5": {
-      "mae_pct_of_capacity": 7.02,
-      "mae_gw": 4.75,
-      "coverage_p10_p90_pct": 81.4,
-      "skill_vs_simple": 0.3,
+      "mae_pct_of_capacity": 7.01,
+      "mae_gw": 4.78,
+      "coverage_p10_p90_pct": 81.3,
+      "skill_vs_simple": 0.31,
       "holdout_mae_pct_of_capacity": 6.98,
       "holdout_coverage_p10_p90_pct": 80.8,
       "holdout_skill_vs_simple": 0.36,
       "quality": "medium"
      },
      "6": {
-      "mae_pct_of_capacity": 8.27,
-      "mae_gw": 5.59,
+      "mae_pct_of_capacity": 8.25,
+      "mae_gw": 5.63,
       "coverage_p10_p90_pct": 82.5,
-      "skill_vs_simple": 0.17,
+      "skill_vs_simple": 0.19,
       "holdout_mae_pct_of_capacity": 8.13,
       "holdout_coverage_p10_p90_pct": 83.2,
       "holdout_skill_vs_simple": 0.26,
@@ -795,7 +795,7 @@
     "holdout_calibrated": true,
     "pruefung": {
      "rollierend_von": "2025-04",
-     "rollierend_bis": "2026-07",
+     "rollierend_bis": "2026-10",
      "abstand_tage": 7,
      "abschluss_von": "2026-08",
      "abschluss_bis": "2026-10",
@@ -807,8 +807,8 @@
      "medium": 0.2
     },
     "day1_vs_tso": {
-     "model_mae_pct": 2.75,
-     "tso_mae_pct": 1.77
+     "model_mae_pct": 2.71,
+     "tso_mae_pct": 1.75
     }
    }
   },
@@ -880,70 +880,70 @@
     "vorlauf_tag"
    ],
    "cqr": {
-    "1": 0.01708238294745053,
-    "2": 0.01847626033215166,
-    "3": 0.020091565918849245,
-    "4": 0.022460776527908854,
-    "5": 0.02449768193099845,
-    "6": 0.030352989128110085
+    "1": 0.016622645118842257,
+    "2": 0.018520423935614684,
+    "3": 0.019560144720852678,
+    "4": 0.021823294245483786,
+    "5": 0.025548706062970293,
+    "6": 0.031235376295989145
    },
    "kennzahlen": {
     "je_tag": {
      "1": {
-      "mae_pct_of_capacity": 6.94,
-      "mae_gw": 0.68,
-      "coverage_p10_p90_pct": 79.8,
-      "skill_vs_simple": 0.62,
+      "mae_pct_of_capacity": 7.02,
+      "mae_gw": 0.7,
+      "coverage_p10_p90_pct": 80.6,
+      "skill_vs_simple": 0.61,
       "holdout_mae_pct_of_capacity": 7.46,
       "holdout_coverage_p10_p90_pct": 85.4,
       "holdout_skill_vs_simple": 0.48,
       "quality": "high"
      },
      "2": {
-      "mae_pct_of_capacity": 8.03,
-      "mae_gw": 0.78,
-      "coverage_p10_p90_pct": 80.6,
-      "skill_vs_simple": 0.57,
+      "mae_pct_of_capacity": 8.04,
+      "mae_gw": 0.81,
+      "coverage_p10_p90_pct": 81.2,
+      "skill_vs_simple": 0.55,
       "holdout_mae_pct_of_capacity": 8.14,
       "holdout_coverage_p10_p90_pct": 84.4,
       "holdout_skill_vs_simple": 0.43,
       "quality": "high"
      },
      "3": {
-      "mae_pct_of_capacity": 9.65,
-      "mae_gw": 0.94,
-      "coverage_p10_p90_pct": 79.6,
-      "skill_vs_simple": 0.48,
+      "mae_pct_of_capacity": 9.64,
+      "mae_gw": 0.97,
+      "coverage_p10_p90_pct": 80.2,
+      "skill_vs_simple": 0.46,
       "holdout_mae_pct_of_capacity": 9.57,
       "holdout_coverage_p10_p90_pct": 83.8,
       "holdout_skill_vs_simple": 0.33,
       "quality": "medium"
      },
      "4": {
-      "mae_pct_of_capacity": 11.64,
-      "mae_gw": 1.14,
-      "coverage_p10_p90_pct": 79.3,
-      "skill_vs_simple": 0.37,
+      "mae_pct_of_capacity": 11.53,
+      "mae_gw": 1.16,
+      "coverage_p10_p90_pct": 79.9,
+      "skill_vs_simple": 0.35,
       "holdout_mae_pct_of_capacity": 10.91,
       "holdout_coverage_p10_p90_pct": 84.0,
       "holdout_skill_vs_simple": 0.23,
       "quality": "medium"
      },
      "5": {
-      "mae_pct_of_capacity": 13.92,
-      "mae_gw": 1.36,
-      "coverage_p10_p90_pct": 81.6,
-      "skill_vs_simple": 0.25,
+      "mae_pct_of_capacity": 13.69,
+      "mae_gw": 1.37,
+      "coverage_p10_p90_pct": 82.2,
+      "skill_vs_simple": 0.23,
       "holdout_mae_pct_of_capacity": 12.45,
       "holdout_coverage_p10_p90_pct": 86.1,
       "holdout_skill_vs_simple": 0.12,
       "quality": "low"
      },
      "6": {
-      "mae_pct_of_capacity": 15.64,
-      "mae_gw": 1.52,
-      "coverage_p10_p90_pct": 81.2,
-      "skill_vs_simple": 0.15,
+      "mae_pct_of_capacity": 15.35,
+      "mae_gw": 1.53,
+      "coverage_p10_p90_pct": 82.1,
+      "skill_vs_simple": 0.14,
       "holdout_mae_pct_of_capacity": 13.8,
       "holdout_coverage_p10_p90_pct": 87.6,
       "holdout_skill_vs_simple": 0.03,
@@ -953,7 +953,7 @@
     "holdout_calibrated": true,
     "pruefung": {
      "rollierend_von": "2025-04",
-     "rollierend_bis": "2026-07",
+     "rollierend_bis": "2026-10",
      "abstand_tage": 7,
      "abschluss_von": "2026-08",
      "abschluss_bis": "2026-10",
@@ -965,15 +965,15 @@
      "medium": 0.2
     },
     "day1_vs_tso": {
-     "model_mae_pct": 6.94,
-     "tso_mae_pct": 5.36
+     "model_mae_pct": 7.02,
+     "tso_mae_pct": 5.34
     }
    }
   }
  },
- "version": "2026.11.01",
- "trainiert_bis": "2026-11-01T15:00Z",
- "erstellt": "2026-11-03T07:49Z",
+ "version": "2026.11.02",
+ "trainiert_bis": "2026-11-02T15:00Z",
+ "erstellt": "2026-11-03T09:49Z",
  "kapazitaet": {
   "solar": {
    "monate": {
