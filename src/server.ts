@@ -13,12 +13,14 @@ import { registerAnalyzePrices } from "./tools/prices.js";
 import { registerComparePeriods } from "./tools/compare-periods.js";
 import { registerGenerationMix } from "./tools/generation-mix.js";
 import { registerSeriesTools } from "./tools/series.js";
+import { registerForecast } from "./tools/forecast.js";
+import { WeatherClient } from "./forecast/weather.js";
 
 export { SERVER_NAME, SERVER_VERSION } from "./version.js";
 
 export { MAX_POINTS } from "./tools/series.js";
 
-export function createServer(client: SmardClient = new SmardClient()): McpServer {
+export function createServer(client: SmardClient = new SmardClient(), weather: WeatherClient = new WeatherClient()): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
     {
@@ -35,6 +37,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
         "- compare_periods: two periods side by side (e.g. this October vs. last October, week vs. week), including the mean price for Germany. Put the baseline (usually the older period) in A; differences are the change from A to B.",
         "- analyze_prices: day-ahead prices DE-LU in detail (mean, negative hours, cheapest/most expensive hours, daily means) plus the mean of the 30 days before, so 'was it expensive?' needs one call. Tomorrow's prices exist after the auction around noon.",
         "- get_series: raw values of a single series, including forecasts, neighbouring price zones, installed capacity per source (capacity_*, MW per year), AT/LU and single TSO zones; use include_points=false for totals only.",
+        "- forecast_renewables: OUR OWN model forecast of solar, wind onshore and wind offshore for the coming hours up to 6 days (p10/p50/p90, official TSO day-ahead forecast next to it). Always pass on its model_notice: these are model estimates. describe_forecast_model explains the model and its measured accuracy.",
         "- list_series: available series keys, regions and the current server time.",
         "Answer short questions briefly with the few numbers asked for. Use a full report layout only when the user explicitly asks for an overview or a report; the prompts strom_uebersicht, wochen_bericht, monatsvergleich, region_vergleich and beste_stunden contain fixed German report templates for that.",
         "Energy is reported in GWh (get_series: MWh per interval, or MW with unit=MW; get_current_status: GW), prices in EUR/MWh. Every result carries server_time. Check complete, covered_until and notes: recent data may be incomplete.",
@@ -55,6 +58,7 @@ export function createServer(client: SmardClient = new SmardClient()): McpServer
   registerCurrentStatus(server, client);
   registerPlanCharging(server, client);
   registerCrossBorderFlows(server, client);
+  registerForecast(server, client, weather);
   registerPrompts(server);
 
   return server;

@@ -1,0 +1,1102 @@
+{
+ "modell_wetter": "icon_seamless",
+ "quantile": [
+  0.1,
+  0.5,
+  0.9
+ ],
+ "parameter": {
+  "objective": "quantile",
+  "num_leaves": 15,
+  "learning_rate": 0.05,
+  "n_estimators": 300,
+  "min_child_samples": 50,
+  "colsample_bytree": 0.8,
+  "subsample": 0.8,
+  "subsample_freq": 1,
+  "max_bin": 255,
+  "n_jobs": 6,
+  "verbose": -1,
+  "random_state": 1
+ },
+ "orte": [
+  {
+   "name": "muenchen",
+   "lat": 48.14,
+   "lon": 11.58,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "augsburg",
+   "lat": 48.37,
+   "lon": 10.9,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "kempten",
+   "lat": 47.73,
+   "lon": 10.31,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "landshut",
+   "lat": 48.54,
+   "lon": 12.15,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "regensburg",
+   "lat": 49.01,
+   "lon": 12.1,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "nuernberg",
+   "lat": 49.45,
+   "lon": 11.08,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "wuerzburg",
+   "lat": 49.79,
+   "lon": 9.95,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "ulm",
+   "lat": 48.4,
+   "lon": 9.99,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "stuttgart",
+   "lat": 48.78,
+   "lon": 9.18,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "freiburg",
+   "lat": 47.99,
+   "lon": 7.85,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "mannheim",
+   "lat": 49.49,
+   "lon": 8.47,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "koeln",
+   "lat": 50.94,
+   "lon": 6.96,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "muenster",
+   "lat": 51.96,
+   "lon": 7.63,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "kassel",
+   "lat": 51.31,
+   "lon": 9.48,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "hannover",
+   "lat": 52.37,
+   "lon": 9.73,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "erfurt",
+   "lat": 50.98,
+   "lon": 11.03,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "leipzig",
+   "lat": 51.34,
+   "lon": 12.37,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "potsdam",
+   "lat": 52.4,
+   "lon": 13.06,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "guestrow",
+   "lat": 53.79,
+   "lon": 12.17,
+   "typ": [
+    "solar"
+   ]
+  },
+  {
+   "name": "magdeburg",
+   "lat": 52.08,
+   "lon": 11.4,
+   "typ": [
+    "solar",
+    "wind"
+   ]
+  },
+  {
+   "name": "cottbus",
+   "lat": 51.76,
+   "lon": 14.33,
+   "typ": [
+    "solar",
+    "wind"
+   ]
+  },
+  {
+   "name": "husum",
+   "lat": 54.48,
+   "lon": 9.05,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "dithmarschen",
+   "lat": 54.19,
+   "lon": 9.1,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "fehmarn",
+   "lat": 54.45,
+   "lon": 11.15,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "emden",
+   "lat": 53.37,
+   "lon": 7.21,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "cuxhaven",
+   "lat": 53.86,
+   "lon": 8.69,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "soltau",
+   "lat": 52.99,
+   "lon": 9.84,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "altmark",
+   "lat": 52.6,
+   "lon": 11.86,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "neubrandenburg",
+   "lat": 53.56,
+   "lon": 13.26,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "prenzlau",
+   "lat": 53.32,
+   "lon": 13.86,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "paderborn",
+   "lat": 51.72,
+   "lon": 8.75,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "vogelsberg",
+   "lat": 50.6,
+   "lon": 9.25,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "hunsrueck",
+   "lat": 49.98,
+   "lon": 7.52,
+   "typ": [
+    "wind"
+   ]
+  },
+  {
+   "name": "nordsee_borkum",
+   "lat": 53.98,
+   "lon": 6.5,
+   "typ": [
+    "offshore"
+   ]
+  },
+  {
+   "name": "nordsee_godewind",
+   "lat": 54.05,
+   "lon": 7.0,
+   "typ": [
+    "offshore"
+   ]
+  },
+  {
+   "name": "nordsee_helgoland",
+   "lat": 54.35,
+   "lon": 7.75,
+   "typ": [
+    "offshore"
+   ]
+  },
+  {
+   "name": "nordsee_deutsche_bucht",
+   "lat": 54.32,
+   "lon": 5.85,
+   "typ": [
+    "offshore"
+   ]
+  },
+  {
+   "name": "nordsee_sandbank",
+   "lat": 55.1,
+   "lon": 7.2,
+   "typ": [
+    "offshore"
+   ]
+  },
+  {
+   "name": "ostsee_baltic",
+   "lat": 54.8,
+   "lon": 13.0,
+   "typ": [
+    "offshore"
+   ]
+  },
+  {
+   "name": "ostsee_arkona",
+   "lat": 54.78,
+   "lon": 14.07,
+   "typ": [
+    "offshore"
+   ]
+  }
+ ],
+ "variablen": {
+  "solar": [
+   "shortwave_radiation",
+   "direct_radiation",
+   "diffuse_radiation",
+   "temperature_2m",
+   "cloud_cover",
+   "wind_speed_10m"
+  ],
+  "wind": [
+   "wind_speed_10m",
+   "wind_speed_100m",
+   "wind_direction_100m",
+   "wind_gusts_10m",
+   "temperature_2m",
+   "surface_pressure"
+  ],
+  "offshore": [
+   "wind_speed_10m",
+   "wind_speed_100m",
+   "wind_direction_100m",
+   "wind_gusts_10m",
+   "temperature_2m",
+   "surface_pressure"
+  ]
+ },
+ "quellen": {
+  "solar": {
+   "merkmale": [
+    "muenchen__shortwave_radiation",
+    "muenchen__direct_radiation",
+    "muenchen__diffuse_radiation",
+    "muenchen__temperature_2m",
+    "muenchen__cloud_cover",
+    "muenchen__wind_speed_10m",
+    "augsburg__shortwave_radiation",
+    "augsburg__direct_radiation",
+    "augsburg__diffuse_radiation",
+    "augsburg__temperature_2m",
+    "augsburg__cloud_cover",
+    "augsburg__wind_speed_10m",
+    "kempten__shortwave_radiation",
+    "kempten__direct_radiation",
+    "kempten__diffuse_radiation",
+    "kempten__temperature_2m",
+    "kempten__cloud_cover",
+    "kempten__wind_speed_10m",
+    "landshut__shortwave_radiation",
+    "landshut__direct_radiation",
+    "landshut__diffuse_radiation",
+    "landshut__temperature_2m",
+    "landshut__cloud_cover",
+    "landshut__wind_speed_10m",
+    "regensburg__shortwave_radiation",
+    "regensburg__direct_radiation",
+    "regensburg__diffuse_radiation",
+    "regensburg__temperature_2m",
+    "regensburg__cloud_cover",
+    "regensburg__wind_speed_10m",
+    "nuernberg__shortwave_radiation",
+    "nuernberg__direct_radiation",
+    "nuernberg__diffuse_radiation",
+    "nuernberg__temperature_2m",
+    "nuernberg__cloud_cover",
+    "nuernberg__wind_speed_10m",
+    "wuerzburg__shortwave_radiation",
+    "wuerzburg__direct_radiation",
+    "wuerzburg__diffuse_radiation",
+    "wuerzburg__temperature_2m",
+    "wuerzburg__cloud_cover",
+    "wuerzburg__wind_speed_10m",
+    "ulm__shortwave_radiation",
+    "ulm__direct_radiation",
+    "ulm__diffuse_radiation",
+    "ulm__temperature_2m",
+    "ulm__cloud_cover",
+    "ulm__wind_speed_10m",
+    "stuttgart__shortwave_radiation",
+    "stuttgart__direct_radiation",
+    "stuttgart__diffuse_radiation",
+    "stuttgart__temperature_2m",
+    "stuttgart__cloud_cover",
+    "stuttgart__wind_speed_10m",
+    "freiburg__shortwave_radiation",
+    "freiburg__direct_radiation",
+    "freiburg__diffuse_radiation",
+    "freiburg__temperature_2m",
+    "freiburg__cloud_cover",
+    "freiburg__wind_speed_10m",
+    "mannheim__shortwave_radiation",
+    "mannheim__direct_radiation",
+    "mannheim__diffuse_radiation",
+    "mannheim__temperature_2m",
+    "mannheim__cloud_cover",
+    "mannheim__wind_speed_10m",
+    "koeln__shortwave_radiation",
+    "koeln__direct_radiation",
+    "koeln__diffuse_radiation",
+    "koeln__temperature_2m",
+    "koeln__cloud_cover",
+    "koeln__wind_speed_10m",
+    "muenster__shortwave_radiation",
+    "muenster__direct_radiation",
+    "muenster__diffuse_radiation",
+    "muenster__temperature_2m",
+    "muenster__cloud_cover",
+    "muenster__wind_speed_10m",
+    "kassel__shortwave_radiation",
+    "kassel__direct_radiation",
+    "kassel__diffuse_radiation",
+    "kassel__temperature_2m",
+    "kassel__cloud_cover",
+    "kassel__wind_speed_10m",
+    "hannover__shortwave_radiation",
+    "hannover__direct_radiation",
+    "hannover__diffuse_radiation",
+    "hannover__temperature_2m",
+    "hannover__cloud_cover",
+    "hannover__wind_speed_10m",
+    "erfurt__shortwave_radiation",
+    "erfurt__direct_radiation",
+    "erfurt__diffuse_radiation",
+    "erfurt__temperature_2m",
+    "erfurt__cloud_cover",
+    "erfurt__wind_speed_10m",
+    "leipzig__shortwave_radiation",
+    "leipzig__direct_radiation",
+    "leipzig__diffuse_radiation",
+    "leipzig__temperature_2m",
+    "leipzig__cloud_cover",
+    "leipzig__wind_speed_10m",
+    "potsdam__shortwave_radiation",
+    "potsdam__direct_radiation",
+    "potsdam__diffuse_radiation",
+    "potsdam__temperature_2m",
+    "potsdam__cloud_cover",
+    "potsdam__wind_speed_10m",
+    "guestrow__shortwave_radiation",
+    "guestrow__direct_radiation",
+    "guestrow__diffuse_radiation",
+    "guestrow__temperature_2m",
+    "guestrow__cloud_cover",
+    "guestrow__wind_speed_10m",
+    "magdeburg__shortwave_radiation",
+    "magdeburg__direct_radiation",
+    "magdeburg__diffuse_radiation",
+    "magdeburg__temperature_2m",
+    "magdeburg__cloud_cover",
+    "magdeburg__wind_speed_10m",
+    "cottbus__shortwave_radiation",
+    "cottbus__direct_radiation",
+    "cottbus__diffuse_radiation",
+    "cottbus__temperature_2m",
+    "cottbus__cloud_cover",
+    "cottbus__wind_speed_10m",
+    "mittel__cloud_cover",
+    "mittel__diffuse_radiation",
+    "mittel__direct_radiation",
+    "mittel__shortwave_radiation",
+    "mittel__temperature_2m",
+    "mittel__wind_speed_10m",
+    "stunde_sin",
+    "stunde_cos",
+    "jahr_sin",
+    "jahr_cos",
+    "sonne_mitte",
+    "sonne_max",
+    "wochentag",
+    "feiertag",
+    "vorlauf_tag"
+   ],
+   "cqr": {
+    "1": 0.002086564825850137,
+    "2": 0.0030819852232649584,
+    "3": 0.002637222745026739,
+    "4": 0.0023108821122530205,
+    "5": 0.0021209171001901517,
+    "6": 0.005427601864838621
+   },
+   "kennzahlen": {
+    "je_tag": {
+     "1": {
+      "mae_pct_of_capacity": 1.76,
+      "mae_gw": 1.87,
+      "coverage_p10_p90_pct": 85.9,
+      "skill_vs_simple": 0.57,
+      "holdout_mae_pct_of_capacity": 1.5,
+      "holdout_coverage_p10_p90_pct": 77.7,
+      "holdout_skill_vs_simple": 0.64,
+      "quality": "high"
+     },
+     "2": {
+      "mae_pct_of_capacity": 1.95,
+      "mae_gw": 2.07,
+      "coverage_p10_p90_pct": 85.5,
+      "skill_vs_simple": 0.53,
+      "holdout_mae_pct_of_capacity": 1.75,
+      "holdout_coverage_p10_p90_pct": 76.4,
+      "holdout_skill_vs_simple": 0.58,
+      "quality": "high"
+     },
+     "3": {
+      "mae_pct_of_capacity": 2.13,
+      "mae_gw": 2.26,
+      "coverage_p10_p90_pct": 85.6,
+      "skill_vs_simple": 0.48,
+      "holdout_mae_pct_of_capacity": 2.03,
+      "holdout_coverage_p10_p90_pct": 75.2,
+      "holdout_skill_vs_simple": 0.51,
+      "quality": "high"
+     },
+     "4": {
+      "mae_pct_of_capacity": 2.38,
+      "mae_gw": 2.53,
+      "coverage_p10_p90_pct": 85.2,
+      "skill_vs_simple": 0.42,
+      "holdout_mae_pct_of_capacity": 2.3,
+      "holdout_coverage_p10_p90_pct": 75.5,
+      "holdout_skill_vs_simple": 0.45,
+      "quality": "high"
+     },
+     "5": {
+      "mae_pct_of_capacity": 2.79,
+      "mae_gw": 2.96,
+      "coverage_p10_p90_pct": 84.7,
+      "skill_vs_simple": 0.32,
+      "holdout_mae_pct_of_capacity": 2.83,
+      "holdout_coverage_p10_p90_pct": 76.1,
+      "holdout_skill_vs_simple": 0.32,
+      "quality": "medium"
+     },
+     "6": {
+      "mae_pct_of_capacity": 3.25,
+      "mae_gw": 3.47,
+      "coverage_p10_p90_pct": 83.7,
+      "skill_vs_simple": 0.21,
+      "holdout_mae_pct_of_capacity": 3.37,
+      "holdout_coverage_p10_p90_pct": 69.0,
+      "holdout_skill_vs_simple": 0.19,
+      "quality": "low"
+     }
+    },
+    "holdout_calibrated": false,
+    "day1_vs_tso": {
+     "model_mae_pct": 1.76,
+     "tso_mae_pct": 1.2
+    }
+   }
+  },
+  "wind_onshore": {
+   "merkmale": [
+    "magdeburg__wind_speed_10m",
+    "magdeburg__wind_speed_100m",
+    "magdeburg__wind_direction_100m_sin",
+    "magdeburg__wind_direction_100m_cos",
+    "magdeburg__wind_gusts_10m",
+    "magdeburg__temperature_2m",
+    "magdeburg__surface_pressure",
+    "cottbus__wind_speed_10m",
+    "cottbus__wind_speed_100m",
+    "cottbus__wind_direction_100m_sin",
+    "cottbus__wind_direction_100m_cos",
+    "cottbus__wind_gusts_10m",
+    "cottbus__temperature_2m",
+    "cottbus__surface_pressure",
+    "husum__wind_speed_10m",
+    "husum__wind_speed_100m",
+    "husum__wind_direction_100m_sin",
+    "husum__wind_direction_100m_cos",
+    "husum__wind_gusts_10m",
+    "husum__temperature_2m",
+    "husum__surface_pressure",
+    "dithmarschen__wind_speed_10m",
+    "dithmarschen__wind_speed_100m",
+    "dithmarschen__wind_direction_100m_sin",
+    "dithmarschen__wind_direction_100m_cos",
+    "dithmarschen__wind_gusts_10m",
+    "dithmarschen__temperature_2m",
+    "dithmarschen__surface_pressure",
+    "fehmarn__wind_speed_10m",
+    "fehmarn__wind_speed_100m",
+    "fehmarn__wind_direction_100m_sin",
+    "fehmarn__wind_direction_100m_cos",
+    "fehmarn__wind_gusts_10m",
+    "fehmarn__temperature_2m",
+    "fehmarn__surface_pressure",
+    "emden__wind_speed_10m",
+    "emden__wind_speed_100m",
+    "emden__wind_direction_100m_sin",
+    "emden__wind_direction_100m_cos",
+    "emden__wind_gusts_10m",
+    "emden__temperature_2m",
+    "emden__surface_pressure",
+    "cuxhaven__wind_speed_10m",
+    "cuxhaven__wind_speed_100m",
+    "cuxhaven__wind_direction_100m_sin",
+    "cuxhaven__wind_direction_100m_cos",
+    "cuxhaven__wind_gusts_10m",
+    "cuxhaven__temperature_2m",
+    "cuxhaven__surface_pressure",
+    "soltau__wind_speed_10m",
+    "soltau__wind_speed_100m",
+    "soltau__wind_direction_100m_sin",
+    "soltau__wind_direction_100m_cos",
+    "soltau__wind_gusts_10m",
+    "soltau__temperature_2m",
+    "soltau__surface_pressure",
+    "altmark__wind_speed_10m",
+    "altmark__wind_speed_100m",
+    "altmark__wind_direction_100m_sin",
+    "altmark__wind_direction_100m_cos",
+    "altmark__wind_gusts_10m",
+    "altmark__temperature_2m",
+    "altmark__surface_pressure",
+    "neubrandenburg__wind_speed_10m",
+    "neubrandenburg__wind_speed_100m",
+    "neubrandenburg__wind_direction_100m_sin",
+    "neubrandenburg__wind_direction_100m_cos",
+    "neubrandenburg__wind_gusts_10m",
+    "neubrandenburg__temperature_2m",
+    "neubrandenburg__surface_pressure",
+    "prenzlau__wind_speed_10m",
+    "prenzlau__wind_speed_100m",
+    "prenzlau__wind_direction_100m_sin",
+    "prenzlau__wind_direction_100m_cos",
+    "prenzlau__wind_gusts_10m",
+    "prenzlau__temperature_2m",
+    "prenzlau__surface_pressure",
+    "paderborn__wind_speed_10m",
+    "paderborn__wind_speed_100m",
+    "paderborn__wind_direction_100m_sin",
+    "paderborn__wind_direction_100m_cos",
+    "paderborn__wind_gusts_10m",
+    "paderborn__temperature_2m",
+    "paderborn__surface_pressure",
+    "vogelsberg__wind_speed_10m",
+    "vogelsberg__wind_speed_100m",
+    "vogelsberg__wind_direction_100m_sin",
+    "vogelsberg__wind_direction_100m_cos",
+    "vogelsberg__wind_gusts_10m",
+    "vogelsberg__temperature_2m",
+    "vogelsberg__surface_pressure",
+    "hunsrueck__wind_speed_10m",
+    "hunsrueck__wind_speed_100m",
+    "hunsrueck__wind_direction_100m_sin",
+    "hunsrueck__wind_direction_100m_cos",
+    "hunsrueck__wind_gusts_10m",
+    "hunsrueck__temperature_2m",
+    "hunsrueck__surface_pressure",
+    "mittel__surface_pressure",
+    "mittel__temperature_2m",
+    "mittel__wind_direction_100m_cos",
+    "mittel__wind_direction_100m_sin",
+    "mittel__wind_gusts_10m",
+    "mittel__wind_speed_100m",
+    "mittel__wind_speed_10m",
+    "stunde_sin",
+    "stunde_cos",
+    "jahr_sin",
+    "jahr_cos",
+    "sonne_mitte",
+    "wochentag",
+    "feiertag",
+    "vorlauf_tag"
+   ],
+   "cqr": {
+    "1": 0.005310940825681514,
+    "2": 0.005373993928392105,
+    "3": 0.007153021928044365,
+    "4": 0.009104123848018762,
+    "5": 0.008854980757734122,
+    "6": 0.014103345110806971
+   },
+   "kennzahlen": {
+    "je_tag": {
+     "1": {
+      "mae_pct_of_capacity": 2.75,
+      "mae_gw": 1.86,
+      "coverage_p10_p90_pct": 82.6,
+      "skill_vs_simple": 0.72,
+      "holdout_mae_pct_of_capacity": 2.57,
+      "holdout_coverage_p10_p90_pct": 81.1,
+      "holdout_skill_vs_simple": 0.77,
+      "quality": "high"
+     },
+     "2": {
+      "mae_pct_of_capacity": 3.46,
+      "mae_gw": 2.34,
+      "coverage_p10_p90_pct": 81.9,
+      "skill_vs_simple": 0.65,
+      "holdout_mae_pct_of_capacity": 3.17,
+      "holdout_coverage_p10_p90_pct": 80.3,
+      "holdout_skill_vs_simple": 0.71,
+      "quality": "high"
+     },
+     "3": {
+      "mae_pct_of_capacity": 4.28,
+      "mae_gw": 2.89,
+      "coverage_p10_p90_pct": 82.5,
+      "skill_vs_simple": 0.57,
+      "holdout_mae_pct_of_capacity": 3.9,
+      "holdout_coverage_p10_p90_pct": 79.5,
+      "holdout_skill_vs_simple": 0.64,
+      "quality": "high"
+     },
+     "4": {
+      "mae_pct_of_capacity": 5.59,
+      "mae_gw": 3.78,
+      "coverage_p10_p90_pct": 81.6,
+      "skill_vs_simple": 0.44,
+      "holdout_mae_pct_of_capacity": 5.08,
+      "holdout_coverage_p10_p90_pct": 83.8,
+      "holdout_skill_vs_simple": 0.54,
+      "quality": "high"
+     },
+     "5": {
+      "mae_pct_of_capacity": 7.02,
+      "mae_gw": 4.75,
+      "coverage_p10_p90_pct": 81.4,
+      "skill_vs_simple": 0.3,
+      "holdout_mae_pct_of_capacity": 6.98,
+      "holdout_coverage_p10_p90_pct": 80.8,
+      "holdout_skill_vs_simple": 0.36,
+      "quality": "medium"
+     },
+     "6": {
+      "mae_pct_of_capacity": 8.27,
+      "mae_gw": 5.59,
+      "coverage_p10_p90_pct": 82.5,
+      "skill_vs_simple": 0.17,
+      "holdout_mae_pct_of_capacity": 8.13,
+      "holdout_coverage_p10_p90_pct": 83.2,
+      "holdout_skill_vs_simple": 0.26,
+      "quality": "low"
+     }
+    },
+    "holdout_calibrated": true,
+    "day1_vs_tso": {
+     "model_mae_pct": 2.75,
+     "tso_mae_pct": 1.77
+    }
+   }
+  },
+  "wind_offshore": {
+   "merkmale": [
+    "nordsee_borkum__wind_speed_10m",
+    "nordsee_borkum__wind_speed_100m",
+    "nordsee_borkum__wind_direction_100m_sin",
+    "nordsee_borkum__wind_direction_100m_cos",
+    "nordsee_borkum__wind_gusts_10m",
+    "nordsee_borkum__temperature_2m",
+    "nordsee_borkum__surface_pressure",
+    "nordsee_godewind__wind_speed_10m",
+    "nordsee_godewind__wind_speed_100m",
+    "nordsee_godewind__wind_direction_100m_sin",
+    "nordsee_godewind__wind_direction_100m_cos",
+    "nordsee_godewind__wind_gusts_10m",
+    "nordsee_godewind__temperature_2m",
+    "nordsee_godewind__surface_pressure",
+    "nordsee_helgoland__wind_speed_10m",
+    "nordsee_helgoland__wind_speed_100m",
+    "nordsee_helgoland__wind_direction_100m_sin",
+    "nordsee_helgoland__wind_direction_100m_cos",
+    "nordsee_helgoland__wind_gusts_10m",
+    "nordsee_helgoland__temperature_2m",
+    "nordsee_helgoland__surface_pressure",
+    "nordsee_deutsche_bucht__wind_speed_10m",
+    "nordsee_deutsche_bucht__wind_speed_100m",
+    "nordsee_deutsche_bucht__wind_direction_100m_sin",
+    "nordsee_deutsche_bucht__wind_direction_100m_cos",
+    "nordsee_deutsche_bucht__wind_gusts_10m",
+    "nordsee_deutsche_bucht__temperature_2m",
+    "nordsee_deutsche_bucht__surface_pressure",
+    "nordsee_sandbank__wind_speed_10m",
+    "nordsee_sandbank__wind_speed_100m",
+    "nordsee_sandbank__wind_direction_100m_sin",
+    "nordsee_sandbank__wind_direction_100m_cos",
+    "nordsee_sandbank__wind_gusts_10m",
+    "nordsee_sandbank__temperature_2m",
+    "nordsee_sandbank__surface_pressure",
+    "ostsee_baltic__wind_speed_10m",
+    "ostsee_baltic__wind_speed_100m",
+    "ostsee_baltic__wind_direction_100m_sin",
+    "ostsee_baltic__wind_direction_100m_cos",
+    "ostsee_baltic__wind_gusts_10m",
+    "ostsee_baltic__temperature_2m",
+    "ostsee_baltic__surface_pressure",
+    "ostsee_arkona__wind_speed_10m",
+    "ostsee_arkona__wind_speed_100m",
+    "ostsee_arkona__wind_direction_100m_sin",
+    "ostsee_arkona__wind_direction_100m_cos",
+    "ostsee_arkona__wind_gusts_10m",
+    "ostsee_arkona__temperature_2m",
+    "ostsee_arkona__surface_pressure",
+    "mittel__surface_pressure",
+    "mittel__temperature_2m",
+    "mittel__wind_direction_100m_cos",
+    "mittel__wind_direction_100m_sin",
+    "mittel__wind_gusts_10m",
+    "mittel__wind_speed_100m",
+    "mittel__wind_speed_10m",
+    "stunde_sin",
+    "stunde_cos",
+    "jahr_sin",
+    "jahr_cos",
+    "sonne_mitte",
+    "wochentag",
+    "feiertag",
+    "vorlauf_tag"
+   ],
+   "cqr": {
+    "1": 0.01708238294745053,
+    "2": 0.01847626033215166,
+    "3": 0.020091565918849245,
+    "4": 0.022460776527908854,
+    "5": 0.02449768193099845,
+    "6": 0.030352989128110085
+   },
+   "kennzahlen": {
+    "je_tag": {
+     "1": {
+      "mae_pct_of_capacity": 6.94,
+      "mae_gw": 0.68,
+      "coverage_p10_p90_pct": 79.8,
+      "skill_vs_simple": 0.62,
+      "holdout_mae_pct_of_capacity": 7.46,
+      "holdout_coverage_p10_p90_pct": 85.4,
+      "holdout_skill_vs_simple": 0.48,
+      "quality": "high"
+     },
+     "2": {
+      "mae_pct_of_capacity": 8.03,
+      "mae_gw": 0.78,
+      "coverage_p10_p90_pct": 80.6,
+      "skill_vs_simple": 0.57,
+      "holdout_mae_pct_of_capacity": 8.14,
+      "holdout_coverage_p10_p90_pct": 84.4,
+      "holdout_skill_vs_simple": 0.43,
+      "quality": "high"
+     },
+     "3": {
+      "mae_pct_of_capacity": 9.65,
+      "mae_gw": 0.94,
+      "coverage_p10_p90_pct": 79.6,
+      "skill_vs_simple": 0.48,
+      "holdout_mae_pct_of_capacity": 9.57,
+      "holdout_coverage_p10_p90_pct": 83.8,
+      "holdout_skill_vs_simple": 0.33,
+      "quality": "medium"
+     },
+     "4": {
+      "mae_pct_of_capacity": 11.64,
+      "mae_gw": 1.14,
+      "coverage_p10_p90_pct": 79.3,
+      "skill_vs_simple": 0.37,
+      "holdout_mae_pct_of_capacity": 10.91,
+      "holdout_coverage_p10_p90_pct": 84.0,
+      "holdout_skill_vs_simple": 0.23,
+      "quality": "medium"
+     },
+     "5": {
+      "mae_pct_of_capacity": 13.92,
+      "mae_gw": 1.36,
+      "coverage_p10_p90_pct": 81.6,
+      "skill_vs_simple": 0.25,
+      "holdout_mae_pct_of_capacity": 12.45,
+      "holdout_coverage_p10_p90_pct": 86.1,
+      "holdout_skill_vs_simple": 0.12,
+      "quality": "low"
+     },
+     "6": {
+      "mae_pct_of_capacity": 15.64,
+      "mae_gw": 1.52,
+      "coverage_p10_p90_pct": 81.2,
+      "skill_vs_simple": 0.15,
+      "holdout_mae_pct_of_capacity": 13.8,
+      "holdout_coverage_p10_p90_pct": 87.6,
+      "holdout_skill_vs_simple": 0.03,
+      "quality": "low"
+     }
+    },
+    "holdout_calibrated": true,
+    "day1_vs_tso": {
+     "model_mae_pct": 6.94,
+     "tso_mae_pct": 5.36
+    }
+   }
+  }
+ },
+ "version": "2026.11.01",
+ "trainiert_bis": "2026-11-01T15:00Z",
+ "erstellt": "2026-11-03T07:49Z",
+ "kapazitaet": {
+  "solar": {
+   "monate": {
+    "2023-01": 63893.0,
+    "2023-02": 64741.0,
+    "2023-03": 65884.0,
+    "2023-04": 66964.0,
+    "2023-05": 68196.0,
+    "2023-06": 69472.0,
+    "2023-07": 70839.0,
+    "2023-08": 72108.0,
+    "2023-09": 73234.0,
+    "2023-10": 74615.0,
+    "2023-11": 75925.0,
+    "2023-12": 76949.0,
+    "2024-01": 78419.0,
+    "2024-02": 79494.0,
+    "2024-03": 80731.0,
+    "2024-04": 81958.0,
+    "2024-05": 83057.0,
+    "2024-06": 84411.0,
+    "2024-07": 85933.0,
+    "2024-08": 86910.0,
+    "2024-09": 88074.0,
+    "2024-10": 89578.0,
+    "2024-11": 90686.0,
+    "2024-12": 92494.0,
+    "2025-01": 93925.0,
+    "2025-02": 95548.0,
+    "2025-03": 96335.0,
+    "2025-04": 97299.0,
+    "2025-05": 98419.0,
+    "2025-06": 99428.0,
+    "2025-07": 100842.0,
+    "2025-08": 102622.0,
+    "2025-09": 103548.0,
+    "2025-10": 104760.0,
+    "2025-11": 106519.0,
+    "2025-12": 107838.0,
+    "2026-01": 108996.0,
+    "2026-02": 109820.0,
+    "2026-03": 111276.0,
+    "2026-04": 112447.0,
+    "2026-05": 113665.0,
+    "2026-06": 114943.0,
+    "2026-07": 116657.0,
+    "2026-08": 118105.0,
+    "2026-09": 119273.0,
+    "2026-10": 120404.0,
+    "2026-11": 121730.2,
+    "2026-12": 123056.3
+   },
+   "geschaetzt_ab": "2026-11",
+   "trend_mw_je_monat": 1352.2
+  },
+  "wind_onshore": {
+   "monate": {
+    "2023-01": 58064.0,
+    "2023-02": 58207.0,
+    "2023-03": 58476.0,
+    "2023-04": 58727.0,
+    "2023-05": 58996.0,
+    "2023-06": 59309.0,
+    "2023-07": 59507.0,
+    "2023-08": 59665.0,
+    "2023-09": 60024.0,
+    "2023-10": 60435.0,
+    "2023-11": 60642.0,
+    "2023-12": 61013.0,
+    "2024-01": 61131.0,
+    "2024-02": 61349.0,
+    "2024-03": 61546.0,
+    "2024-04": 61691.0,
+    "2024-05": 61743.0,
+    "2024-06": 61917.0,
+    "2024-07": 62124.0,
+    "2024-08": 62303.0,
+    "2024-09": 62513.0,
+    "2024-10": 62720.0,
+    "2024-11": 63184.0,
+    "2024-12": 63589.0,
+    "2025-01": 63781.0,
+    "2025-02": 64090.0,
+    "2025-03": 64448.0,
+    "2025-04": 64709.0,
+    "2025-05": 65078.0,
+    "2025-06": 65444.0,
+    "2025-07": 65783.0,
+    "2025-08": 66117.0,
+    "2025-09": 66451.0,
+    "2025-10": 67054.0,
+    "2025-11": 67410.0,
+    "2025-12": 68179.0,
+    "2026-01": 68366.0,
+    "2026-02": 68609.0,
+    "2026-03": 69054.0,
+    "2026-04": 69330.0,
+    "2026-05": 69667.0,
+    "2026-06": 70093.0,
+    "2026-07": 70452.0,
+    "2026-08": 70906.0,
+    "2026-09": 71354.0,
+    "2026-10": 71705.0,
+    "2026-11": 72100.8,
+    "2026-12": 72496.7
+   },
+   "geschaetzt_ab": "2026-11",
+   "trend_mw_je_monat": 400.6
+  },
+  "wind_offshore": {
+   "monate": {
+    "2023-01": 8254.0,
+    "2023-02": 8292.0,
+    "2023-03": 8359.0,
+    "2023-04": 8426.0,
+    "2023-05": 8445.0,
+    "2023-06": 8445.0,
+    "2023-07": 8445.0,
+    "2023-08": 8445.0,
+    "2023-09": 8445.0,
+    "2023-10": 8445.0,
+    "2023-11": 8473.0,
+    "2023-12": 8473.0,
+    "2024-01": 8473.0,
+    "2024-02": 8473.0,
+    "2024-03": 8473.0,
+    "2024-04": 8473.0,
+    "2024-05": 8695.0,
+    "2024-06": 8851.0,
+    "2024-07": 9040.0,
+    "2024-08": 9127.0,
+    "2024-09": 9215.0,
+    "2024-10": 9215.0,
+    "2024-11": 9215.0,
+    "2024-12": 9215.0,
+    "2025-01": 9215.0,
+    "2025-02": 9215.0,
+    "2025-03": 9215.0,
+    "2025-04": 9215.0,
+    "2025-05": 9215.0,
+    "2025-06": 9215.0,
+    "2025-07": 9215.0,
+    "2025-08": 9215.0,
+    "2025-09": 9215.0,
+    "2025-10": 9215.0,
+    "2025-11": 9230.0,
+    "2025-12": 9733.0,
+    "2026-01": 9904.0,
+    "2026-02": 10019.0,
+    "2026-03": 10201.0,
+    "2026-04": 10404.0,
+    "2026-05": 10616.0,
+    "2026-06": 10811.0,
+    "2026-07": 10942.0,
+    "2026-08": 11299.0,
+    "2026-09": 11599.0,
+    "2026-10": 11659.0,
+    "2026-11": 11659.0,
+    "2026-12": 11659.0
+   },
+   "geschaetzt_ab": "2026-12",
+   "trend_mw_je_monat": 0.0
+  }
+ }
+}

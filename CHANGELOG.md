@@ -7,6 +7,17 @@ changes; they are marked as such.
 
 ## [Unreleased]
 
+### Added (branch forecast, not released)
+
+- `forecast_renewables`: our own model forecast of solar, wind onshore and wind offshore for
+  Germany up to 6 days ahead (p10/p50/p90 per hour or day, official TSO day-ahead forecast next
+  to it, quality level per interval). Every result carries `model_notice`: the values are model
+  estimates. Models from [smard-forecast](https://github.com/akquisio-dev/smard-forecast)
+  in `models/`, evaluated in TypeScript without new dependencies; weather from Open-Meteo
+  (DWD ICON), one request for all places, cached until a newer model run.
+- `describe_forecast_model`: short technical description of that model with its measured
+  accuracy per source and lead day, generated from the model files.
+
 ### Security
 
 - zod 4.6.5 -> 4.6.7 (CVE-2023-54404).

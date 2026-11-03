@@ -30,6 +30,7 @@
   },
   "files": [
     "dist",
+    "models",
     "!dist/smoke.*",
     "!dist/**/*.map"
   ],
